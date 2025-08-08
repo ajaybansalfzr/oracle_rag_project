@@ -1,20 +1,19 @@
 # scripts/utils/vector_store_utils.py
 
-import faiss
 # import pickle
 import sqlite3
+
+import faiss
 import numpy as np
-from pathlib import Path
 
 from .. import config
-
-from .utils import get_logger,get_safe_model_name
-
+from .utils import get_logger, get_safe_model_name
 
 logger = get_logger(__name__)
 # PROJECT_ROOT = Path(__file__).resolve().parents[2]
 # EMBEDDINGS_DIR = PROJECT_ROOT / "embeddings"
 # EMBEDDING_MODELS = ['all-MiniLM-L6-v2', 'BAAI/bge-small-en-v1.5'] # Should be moved to config later
+
 
 def _get_artifact_paths(model_name: str, index_type: str) -> dict:
     """Internal helper to get artifact paths using the robust safe name."""
@@ -25,6 +24,7 @@ def _get_artifact_paths(model_name: str, index_type: str) -> dict:
     meta_path = config.EMBEDDINGS_DIR / f"{index_type}_metadata_{safe_name}.db"
     bm25_path = config.EMBEDDINGS_DIR / f"{index_type}_bm25_{safe_name}.pkl"
     return {"faiss_path": faiss_path, "metadata_path": meta_path, "bm25": bm25_path}
+
 
 # In scripts/utils/vector_store_utils.py, add this new function
 
@@ -39,10 +39,10 @@ def _get_artifact_paths(model_name: str, index_type: str) -> dict:
 
 #     from .database_utils import get_db_connection
 #     logger.warning(f"Cleaning up old section vectors for {len(doc_ids)} documents for model '{model_name}'.")
-    
+
 #     conn = get_db_connection()
 #     id_placeholders = ','.join(['?'] * len(doc_ids))
-    
+
 #     # Find all 'section_id's associated with the documents being updated.
 #     # This includes sections from both 'active' and 'archived' versions of the document name,
 #     # ensuring we clean up everything related to these docs.
@@ -58,7 +58,7 @@ def _get_artifact_paths(model_name: str, index_type: str) -> dict:
 #         return
 
 #     artifacts = _get_artifact_paths(model_name, "section")
-    
+
 #     # --- Perform Cleanup ---
 #     # 1. Remove from metadata DB first for safety
 #     if artifacts["metadata_path"].exists():
@@ -93,7 +93,7 @@ def _get_artifact_paths(model_name: str, index_type: str) -> dict:
 #         return
 
 #     logger.warning(f"Cleaning up old section vectors for {len(doc_ids_to_clean)} documents for model '{model_name}'.")
-    
+
 #     artifacts = _get_artifact_paths(model_name, "section")
 #     meta_path = artifacts["metadata_path"]
 #     faiss_path = artifacts["faiss_path"]
@@ -105,7 +105,7 @@ def _get_artifact_paths(model_name: str, index_type: str) -> dict:
 #     # --- Perform Cleanup using only the Metadata DB ---
 #     with sqlite3.connect(meta_path) as conn_meta:
 #         id_placeholders = ','.join(['?'] * len(doc_ids_to_clean))
-        
+
 #         # 1. Find the specific vector IDs (section_ids) to remove.
 #         cursor = conn_meta.cursor()
 #         cursor.execute(f"SELECT section_id FROM metadata WHERE doc_id IN ({id_placeholders})", doc_ids_to_clean)
@@ -132,6 +132,7 @@ def _get_artifact_paths(model_name: str, index_type: str) -> dict:
 #             faiss.write_index(index, str(faiss_path))
 #             logger.info(f"Removed {num_removed} old section vectors from FAISS index.")
 
+
 def cleanup_archived_vectors(doc_names_to_update: list, model_name: str, tier: str):
     """
     Finds all ARCHIVED documents matching a list of document names and removes
@@ -142,17 +143,20 @@ def cleanup_archived_vectors(doc_names_to_update: list, model_name: str, tier: s
         return
 
     from .database_utils import get_db_connection
-    logger.warning(f"Cleaning up {tier} vectors for {len(doc_names_to_update)} archived document names for model '{model_name}'.")
-    
+
+    logger.warning(
+        f"Cleaning up {tier} vectors for {len(doc_names_to_update)} archived document names for model '{model_name}'."
+    )
+
     conn = get_db_connection()
-    name_placeholders = ','.join(['?'] * len(doc_names_to_update))
-    
+    name_placeholders = ",".join(["?"] * len(doc_names_to_update))
+
     # Find the doc_ids of all ARCHIVED documents that match the names of the docs we are updating.
     archived_doc_ids_query = f"""
         SELECT doc_id FROM documents
         WHERE doc_name IN ({name_placeholders}) AND lifecycle_status = 'archived'
     """
-    archived_doc_ids = [row['doc_id'] for row in conn.execute(archived_doc_ids_query, doc_names_to_update).fetchall()]
+    archived_doc_ids = [row["doc_id"] for row in conn.execute(archived_doc_ids_query, doc_names_to_update).fetchall()]
 
     if not archived_doc_ids:
         logger.info("No archived document versions found for the current batch. No vector cleanup needed.")
@@ -161,11 +165,13 @@ def cleanup_archived_vectors(doc_names_to_update: list, model_name: str, tier: s
 
     # Now, find all vector IDs (chunk_id or section_id) that belong to these archived documents.
     id_col = f"{tier}_id"
-    table = f"{tier}s" # sections or chunks
-    id_placeholders = ','.join(['?'] * len(archived_doc_ids))
-    
+    table = f"{tier}s"  # sections or chunks
+    id_placeholders = ",".join(["?"] * len(archived_doc_ids))
+
     vector_ids_to_remove_query = f"SELECT {id_col} FROM {table} WHERE doc_id IN ({id_placeholders})"
-    vector_ids_to_remove = [row[id_col] for row in conn.execute(vector_ids_to_remove_query, archived_doc_ids).fetchall()]
+    vector_ids_to_remove = [
+        row[id_col] for row in conn.execute(vector_ids_to_remove_query, archived_doc_ids).fetchall()
+    ]
     conn.close()
 
     if not vector_ids_to_remove:
@@ -181,10 +187,10 @@ def cleanup_archived_vectors(doc_names_to_update: list, model_name: str, tier: s
     # 1. Remove from metadata DB
     if meta_path.exists():
         with sqlite3.connect(meta_path) as conn_meta:
-            id_placeholders = ','.join(['?'] * len(vector_ids_to_remove))
+            id_placeholders = ",".join(["?"] * len(vector_ids_to_remove))
             deleted_count = conn_meta.execute(
                 f"DELETE FROM metadata WHERE {metadata_id_col} IN ({id_placeholders})",
-                vector_ids_to_remove
+                vector_ids_to_remove,
             ).rowcount
             if deleted_count > 0:
                 logger.info(f"Removed {deleted_count} old {tier} metadata entries.")
@@ -196,6 +202,7 @@ def cleanup_archived_vectors(doc_names_to_update: list, model_name: str, tier: s
         if num_removed > 0:
             faiss.write_index(index, str(faiss_path))
             logger.info(f"Removed {num_removed} old {tier} vectors from FAISS index.")
+
 
 # def remove_document_vectors(doc_id: int):
 #     """
@@ -226,7 +233,7 @@ def cleanup_archived_vectors(doc_names_to_update: list, model_name: str, tier: s
 
 #     for model_name in config.EMBEDDING_MODELS_LIST:
 #         logger.info(f"--- Cleaning artifacts for model: {model_name} ---")
-        
+
 #         # --- Tier 1 (Chunk) Cleanup ---
 #         if chunk_ids:
 #             chunk_artifacts = _get_artifact_paths(model_name, "chunk")
@@ -263,6 +270,7 @@ def cleanup_archived_vectors(doc_names_to_update: list, model_name: str, tier: s
 
 #     logger.info(f"Vector deletion process completed for doc_id: {doc_id}")
 
+
 def _archive_and_delete_metadata(conn: sqlite3.Connection, table_name: str, id_column: str, ids_to_process: list):
     """
     Archives rows from a metadata table to a corresponding '_archived' table
@@ -270,7 +278,7 @@ def _archive_and_delete_metadata(conn: sqlite3.Connection, table_name: str, id_c
     """
     if not ids_to_process:
         return 0
-        
+
     archived_table_name = f"{table_name}_archived"
     cursor = conn.cursor()
 
@@ -280,22 +288,29 @@ def _archive_and_delete_metadata(conn: sqlite3.Connection, table_name: str, id_c
     try:
         cursor.execute(f"ALTER TABLE {archived_table_name} ADD COLUMN archived_at TEXT;")
     except sqlite3.OperationalError:
-        pass # Column already exists
+        pass  # Column already exists
 
     # 1. Copy data to the archive table
-    id_placeholders = ','.join(['?'] * len(ids_to_process))
-    cursor.execute(f"""
+    id_placeholders = ",".join(["?"] * len(ids_to_process))
+    cursor.execute(
+        f"""
         INSERT INTO {archived_table_name}
         SELECT *, datetime('now') FROM {table_name}
         WHERE {id_column} IN ({id_placeholders})
-    """, ids_to_process)
-    
+    """,
+        ids_to_process,
+    )
+
     # 2. Delete data from the active table
-    cursor.execute(f"DELETE FROM {table_name} WHERE {id_column} IN ({id_placeholders})", ids_to_process)
-    
+    cursor.execute(
+        f"DELETE FROM {table_name} WHERE {id_column} IN ({id_placeholders})",
+        ids_to_process,
+    )
+
     deleted_count = cursor.rowcount
     logger.info(f"Archived and deleted {deleted_count} rows from '{table_name}' metadata.")
     return deleted_count
+
 
 def remove_document_vectors(doc_id: int):
     """
@@ -305,28 +320,35 @@ def remove_document_vectors(doc_id: int):
     intended for permanent data removal, not for routine updates.
     """
     from .database_utils import get_db_connection
+
     logger.warning(f"🚨 EXECUTING PERMANENT DELETION for all vector artifacts related to doc_id: {doc_id}")
 
     conn = get_db_connection()
-    ids_to_delete = conn.execute("""
+    ids_to_delete = conn.execute(
+        """
         SELECT s.section_id, c.chunk_id FROM sections s
         LEFT JOIN chunks c ON s.section_id = c.section_id
         WHERE s.doc_id = ?
-    """, (doc_id,)).fetchall()
+    """,
+        (doc_id,),
+    ).fetchall()
     conn.close()
 
     if not ids_to_delete:
         logger.info(f"No sections or chunks found for doc_id: {doc_id}. No vector artifacts to remove.")
         return
 
-    section_ids = sorted(list(set(row['section_id'] for row in ids_to_delete if row['section_id'] is not None)))
-    chunk_ids = sorted(list(set(row['chunk_id'] for row in ids_to_delete if row['chunk_id'] is not None)))
+    section_ids = sorted(list(set(row["section_id"] for row in ids_to_delete if row["section_id"] is not None)))
+    chunk_ids = sorted(list(set(row["chunk_id"] for row in ids_to_delete if row["chunk_id"] is not None)))
 
     for model_name in config.EMBEDDING_MODELS_LIST:
         logger.info(f"🧹 Processing permanent deletion for model: {model_name}")
-        
+
         # --- Process each tier (Chunks and Sections) ---
-        for tier, ids, id_col_name in [("chunk", chunk_ids, "chunk_id_link"), ("section", section_ids, "section_id")]:
+        for tier, ids, id_col_name in [
+            ("chunk", chunk_ids, "chunk_id_link"),
+            ("section", section_ids, "section_id"),
+        ]:
             if not ids:
                 continue
 
@@ -344,13 +366,15 @@ def remove_document_vectors(doc_id: int):
                     num_removed = index.remove_ids(np.array(ids, dtype=np.int64))
                     if num_removed > 0:
                         faiss.write_index(index, str(artifacts["faiss_path"]))
-                        logger.info(f"✅ Permanently removed {num_removed} {tier} vectors from FAISS index for model '{model_name}'.")
+                        logger.info(
+                            f"✅ Permanently removed {num_removed} {tier} vectors from FAISS index for model '{model_name}'."
+                        )
 
             except Exception as e:
                 logger.critical(
                     f"❌ FATAL ERROR during {tier.upper()} artifact deletion for model '{model_name}'. "
                     f"The system may be in an inconsistent state. Manual inspection required. Error: {e}",
-                    exc_info=True
+                    exc_info=True,
                 )
 
     logger.info(f"✅ Permanent vector artifact deletion process completed for doc_id: {doc_id}")
@@ -393,7 +417,7 @@ def remove_document_vectors(doc_id: int):
 #         #             logger.info(f"✅ Removed {len(chunk_ids)} chunk vectors from FAISS")
 #         #     except Exception as e:
 #         #         logger.error(f"❌ Failed chunk FAISS cleanup: {e}")
-            
+
 #         #     if artifacts["metadata_path"].exists():
 #         #         with sqlite3.connect(artifacts["metadata_path"]) as conn_meta:
 #         #             deleted = conn_meta.execute(
@@ -442,7 +466,7 @@ def remove_document_vectors(doc_id: int):
 #         #             logger.info(f"✅ Removed {len(section_ids)} section vectors from FAISS")
 #         #     except Exception as e:
 #         #         logger.error(f"❌ Failed section FAISS cleanup: {e}")
-            
+
 #         #     if artifacts["metadata_path"].exists():
 #         #         with sqlite3.connect(artifacts["metadata_path"]) as conn_meta:
 #         #             deleted = conn_meta.execute(
@@ -463,7 +487,7 @@ def remove_document_vectors(doc_id: int):
 #                         ).rowcount
 #                         conn_meta.commit()
 #                         logger.info(f"✅ Removed {deleted_count} section metadata rows for model '{model_name}'.")
-                
+
 #                 # Step 2: Only after metadata is gone, delete from the FAISS index.
 #                 if artifacts["faiss_path"].exists():
 #                     index = faiss.read_index(str(artifacts["faiss_path"]))
@@ -473,7 +497,7 @@ def remove_document_vectors(doc_id: int):
 #                         logger.info(f"✅ Removed {num_removed} section vectors from FAISS for model '{model_name}'.")
 #                     else:
 #                         logger.warning(f"⚠️ Vector removal from FAISS index for model '{model_name}' completed, but no matching section IDs were found to remove.")
-                        
+
 #             except Exception as e:
 #                 logger.error(
 #                     f"❌ An error occurred during SECTION artifact cleanup for model '{model_name}'. "
@@ -481,5 +505,3 @@ def remove_document_vectors(doc_id: int):
 #                 )
 
 #     logger.info(f"✅ Vector deletion completed for doc_id: {doc_id}")
-
-

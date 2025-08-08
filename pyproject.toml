@@ -1,0 +1,17 @@
+[tool.black]
+line-length = 120
+target-version = ["py311"]
+
+[tool.isort]
+profile = "black"
+line_length = 120
+# Keep isort focused on your code, not stdlib or site-packages
+src_paths = ["scripts"]
+# Don’t wander into archived folders
+skip_glob = [
+  "helpers/older Versions/**",
+  "scripts/older Version/**",
+  "scripts/Working Version-1/**",
+]
+# Helps when you have a local package (so isort groups correctly)
+known_first_party = ["scripts"]

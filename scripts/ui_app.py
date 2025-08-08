@@ -2,7 +2,6 @@
 import sys
 from pathlib import Path
 
-
 # --- CRITICAL FIX FOR IMPORTS ---
 # This block makes the entire 'scripts' package available for absolute imports.
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -10,7 +9,6 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 # --- END OF FIX ---
 
-import streamlit as st
 # import subprocess
 # import pandas as pd
 # import traceback
@@ -18,14 +16,16 @@ import streamlit as st
 # import requests
 import time
 
+import streamlit as st
+
+# from scripts.tasks import get_rag_answer
+from celery.result import AsyncResult
+
 # --- Correctly use the project's modules ---
 # from scripts.query_handler import query_rag_pipeline,load_resources
 from scripts import config
+from scripts.tasks import get_rag_answer, reload_models_task, run_pipeline_task
 from scripts.utils.utils import get_logger
-# from scripts.tasks import get_rag_answer
-from celery.result import AsyncResult
-from scripts.tasks import get_rag_answer, run_pipeline_task, reload_models_task
-
 
 logger = get_logger(__name__)
 
@@ -34,22 +34,23 @@ python_executable = sys.executable
 
 
 # --- Page Configuration ---
-st.set_page_config(
-    page_title="Oracle RAG Chat",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="Oracle RAG Chat", layout="wide", initial_sidebar_state="expanded")
 
 # --- Best Practice: Centralized Session State Initialization ---
-if 'persona' not in st.session_state:
+if "persona" not in st.session_state:
     st.session_state.persona = "User"
-if 'messages' not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Hello! How can I help you with your Oracle documents today?"}]
-if 'pipeline_task_id' not in st.session_state:
+if "messages" not in st.session_state:
+    st.session_state.messages = [
+        {
+            "role": "assistant",
+            "content": "Hello! How can I help you with your Oracle documents today?",
+        }
+    ]
+if "pipeline_task_id" not in st.session_state:
     st.session_state.pipeline_task_id = None
-if 'pipeline_task_result' not in st.session_state:
+if "pipeline_task_result" not in st.session_state:
     st.session_state.pipeline_task_result = None
-if 'last_run_script' not in st.session_state:
+if "last_run_script" not in st.session_state:
     st.session_state.last_run_script = None
 # --- End of Initialization ---
 
@@ -65,13 +66,13 @@ with st.sidebar:
 
     with st.expander("Upload & Process Documents", expanded=True):
         uploaded_file = st.file_uploader("Upload an Oracle PDF", type="pdf")
-        
+
         if uploaded_file:
             # Use config.DATA_DIR from the imported config module
             file_path = config.DATA_DIR / uploaded_file.name
             # --- START OF GRACEFUL ERROR HANDLING ---
             try:
-                with open(file_path, 'wb') as f:
+                with open(file_path, "wb") as f:
                     f.write(uploaded_file.getbuffer())
                 st.success(f"Saved '{uploaded_file.name}' to the data folder.")
             except PermissionError:
@@ -116,8 +117,8 @@ with st.sidebar:
                 st.session_state.pipeline_task_id = task.id
                 st.session_state.pipeline_task_result = None
                 st.session_state.last_run_script = "scripts.extractor_for_pdf"
-                st.success(f"✅ Task submitted!")
-                st.rerun() # UX Improvement: Auto-refresh to show "in progress"
+                st.success("✅ Task submitted!")
+                st.rerun()  # UX Improvement: Auto-refresh to show "in progress"
 
         if st.button("2. Summarize & Chunk", key="summarize_btn"):
             with st.spinner("Submitting task..."):
@@ -125,7 +126,7 @@ with st.sidebar:
                 st.session_state.pipeline_task_id = task.id
                 st.session_state.pipeline_task_result = None
                 st.session_state.last_run_script = "scripts.process_and_summarize"
-                st.success(f"✅ Task submitted!")
+                st.success("✅ Task submitted!")
                 st.rerun()
 
         if st.button("3. Generate & Store Embeddings", key="embed_btn"):
@@ -134,46 +135,46 @@ with st.sidebar:
                 st.session_state.pipeline_task_id = task.id
                 st.session_state.pipeline_task_result = None
                 st.session_state.last_run_script = "scripts.create_vector_store"
-                st.success(f"✅ Task submitted!")
+                st.success("✅ Task submitted!")
                 st.rerun()
-                
+
                 # --- Section to Check and Display Task Results ---
     if st.session_state.pipeline_task_id:
         result = AsyncResult(st.session_state.pipeline_task_id, app=run_pipeline_task)
         # --- NEW LOGIC TO HANDLE PROGRESS ---
-        if result.state == 'PROGRESS':
+        if result.state == "PROGRESS":
             # Display a progress bar and status text
             progress_meta = result.info
             progress_bar = st.progress(0)
             status_text = st.empty()
 
             # Polling loop to update the progress bar
-            while result.state == 'PROGRESS':
+            while result.state == "PROGRESS":
                 progress_meta = result.info
-                percent_complete = int((progress_meta.get('current', 0) / progress_meta.get('total', 100)) * 100)
-                status_message = progress_meta.get('status', 'Processing...')
-                
+                percent_complete = int((progress_meta.get("current", 0) / progress_meta.get("total", 100)) * 100)
+                status_message = progress_meta.get("status", "Processing...")
+
                 progress_bar.progress(percent_complete)
                 # Display the raw tqdm status message for detailed feedback
                 status_text.text(f"Status: {status_message}")
-                
+
                 # Wait a short time before polling again
                 time.sleep(0.5)
-            
+
             # After the loop, the task is finished. We need to get the final result.
             st.session_state.pipeline_task_result = result.get()
-            st.rerun() # Rerun the script to now display the final result.
+            st.rerun()  # Rerun the script to now display the final result.
 
         elif result.ready():
             if st.session_state.pipeline_task_result is None:
-                 st.session_state.pipeline_task_result = result.get()
-            
+                st.session_state.pipeline_task_result = result.get()
+
             st.header("Pipeline Task Result")
             result_data = st.session_state.pipeline_task_result
-            if result_data and result_data.get('status') == 'SUCCESS':
+            if result_data and result_data.get("status") == "SUCCESS":
                 st.success("Task completed successfully!")
-                st.code(result_data.get('output', ''), language="bash")
-                
+                st.code(result_data.get("output", ""), language="bash")
+
                 if st.session_state.last_run_script == "scripts.create_vector_store":
                     with st.spinner("Broadcasting model reload signal to workers..."):
                         reload_models_task.apply_async()
@@ -181,8 +182,8 @@ with st.sidebar:
                     st.session_state.last_run_script = None
             else:
                 st.error("Task failed!")
-                st.code(result_data.get('output', 'No output received.'), language="bash")
-            
+                st.code(result_data.get("output", "No output received."), language="bash")
+
             if st.button("Clear Result"):
                 st.session_state.pipeline_task_id = None
                 st.session_state.pipeline_task_result = None
@@ -198,7 +199,7 @@ with st.sidebar:
     st.selectbox(
         "Select a Persona",
         ["Consultant", "Developer", "User"],
-        key='persona', # Binds this widget directly to the session state key
+        key="persona",  # Binds this widget directly to the session state key
     )
 
 
@@ -215,15 +216,19 @@ if user_prompt := st.chat_input("Ask a question..."):
         st.markdown(user_prompt)
 
     with st.chat_message("assistant"):
-        persona_map = {"Consultant": "consultant_answer", "Developer": "developer_answer", "User": "user_answer"}
+        persona_map = {
+            "Consultant": "consultant_answer",
+            "Developer": "developer_answer",
+            "User": "user_answer",
+        }
         persona_arg = persona_map.get(st.session_state.persona, "user_answer")
 
         task = get_rag_answer.delay(
-            query=user_prompt, 
-            chat_history=st.session_state.messages, # Pass the history
-            persona=persona_arg, 
-            # top_k=config.top_k, 
-            ensemble=True
+            query=user_prompt,
+            chat_history=st.session_state.messages,  # Pass the history
+            persona=persona_arg,
+            # top_k=config.top_k,
+            ensemble=True,
         )
 
         with st.spinner("Thinking... Your request is being processed. Please wait."):
@@ -232,17 +237,19 @@ if user_prompt := st.chat_input("Ask a question..."):
                 if result.ready():
                     if result.successful():
                         response_data = result.get()
-                        answer = response_data.get('answer', 'Error: No answer found in response.')
-                        sources = response_data.get('sources', [])
+                        answer = response_data.get("answer", "Error: No answer found in response.")
+                        sources = response_data.get("sources", [])
                         formatted_sources = "\n".join([f"- {s}" for s in sources])
                         final_response = f"{answer}\n\n---\n**📚 Cited Sources:**\n{formatted_sources}"
                     else:
-                        final_response = "I'm sorry, an error occurred. Please check the Celery worker logs for details."
-                    
+                        final_response = (
+                            "I'm sorry, an error occurred. Please check the Celery worker logs for details."
+                        )
+
                     st.markdown(final_response)
                     st.session_state.messages.append({"role": "assistant", "content": final_response})
                     break
-                
+
                 time.sleep(1)
 
 
@@ -253,7 +260,7 @@ if user_prompt := st.chat_input("Ask a question..."):
 #             # Task is finished, store and display the result
 #             if st.session_state.pipeline_task_result is None:
 #                  st.session_state.pipeline_task_result = result.get()
-            
+
 #             st.header("Pipeline Task Result")
 #             result_data = st.session_state.pipeline_task_result
 #             if result_data['status'] == 'SUCCESS':
@@ -262,7 +269,7 @@ if user_prompt := st.chat_input("Ask a question..."):
 #             else:
 #                 st.error("Task failed!")
 #                 st.code(result_data['output'], language="bash")
-            
+
 #             if st.button("Clear Result"):
 #                 st.session_state.pipeline_task_id = None
 #                 st.session_state.pipeline_task_result = None
@@ -333,7 +340,7 @@ if user_prompt := st.chat_input("Ask a question..."):
 # #     with st.chat_message("assistant"):
 # #         with st.spinner("Thinking..."):
 # #             standalone_question = get_standalone_question(st.session_state.messages)
-            
+
 # #             with st.expander("🔍 See RAG Input"):
 # #                 st.info(standalone_question)
 
@@ -342,9 +349,9 @@ if user_prompt := st.chat_input("Ask a question..."):
 # #             final_response = answer
 # #             if sources:
 # #                 final_response += f"\n\n---\n**📚 Cited Sources:**\n{sources}"
-            
+
 # #             st.markdown(final_response)
-    
+
 # #     st.session_state.messages.append({"role": "assistant", "content": final_response})
 
 # if user_prompt := st.chat_input("Ask a question..."):
@@ -354,7 +361,7 @@ if user_prompt := st.chat_input("Ask a question..."):
 
 #     with st.chat_message("assistant"):
 #         # --- The New Asynchronous Flow ---
-        
+
 #         # 1. Get the persona argument
 #         persona_map = {"Consultant": "consultant_answer", "Developer": "developer_answer", "User": "user_answer"}
 #         persona_arg = persona_map.get(st.session_state.persona, "user_answer")
@@ -378,18 +385,18 @@ if user_prompt := st.chat_input("Ask a question..."):
 #                         answer = response_data['answer']
 #                         sources = response_data['sources']
 #                         formatted_sources = "\n".join([f"- {s}" for s in sources])
-                        
+
 #                         final_response = answer
 #                         if sources:
 #                             final_response += f"\n\n---\n**📚 Cited Sources:**\n{formatted_sources}"
 #                     else:
 #                         # The task failed in the worker
 #                         final_response = "I'm sorry, an error occurred while processing your request in the background. Please check the worker logs."
-                    
+
 #                     st.markdown(final_response)
 #                     st.session_state.messages.append({"role": "assistant", "content": final_response})
 #                     break # Exit the polling loop
-                
+
 #                 # Wait for 2 seconds before checking again
 #                 time.sleep(2)
 
@@ -424,7 +431,7 @@ if user_prompt := st.chat_input("Ask a question..."):
 #         with st.spinner("Thinking..."):
 #             # 1. Condense chat history to a standalone question
 #             standalone_question = get_standalone_question(st.session_state.messages)
-            
+
 #             # Optional: Show the condensed question for debugging
 #             with st.expander("🔍 See RAG Input"):
 #                 st.write("The following standalone question was sent to the RAG pipeline:")
@@ -437,9 +444,9 @@ if user_prompt := st.chat_input("Ask a question..."):
 #             final_response = answer
 #             if sources:
 #                 final_response += f"\n\n---\n**📚 Cited Sources:**\n\n{sources}"
-                
+
 #             st.markdown(final_response)
-    
+
 #     # Add assistant response to chat history
 #     st.session_state.messages.append({"role": "assistant", "content": final_response})
 
@@ -483,7 +490,7 @@ if user_prompt := st.chat_input("Ask a question..."):
 #     #     formatted_history += f"{msg['role'].capitalize()}: {msg['content']}\n"
 #     formatted_history = "\n".join([f"{msg['role'].capitalize()}: {msg['content']}" for msg in chat_history[:-1]])
 #     last_user_question = chat_history[-1]['content']
-    
+
 #     # last_user_question = chat_history[-1]['content']
 
 #     system_prompt = """You are a query rewriting expert. Your task is to rephrase a follow-up question into a self-contained, standalone question based on the provided chat history. The new question must be understandable without needing to read the previous conversation.
@@ -536,7 +543,7 @@ if user_prompt := st.chat_input("Ask a question..."):
 
 # def run_rag_pipeline(query: str, persona: str) -> tuple[str, str]:
 #     """Executes the backend RAG pipeline via direct function calls."""
-    
+
 #     persona_map = {
 #         "Consultant": "consultant_answer",
 #         "Developer": "developer_answer",
@@ -552,7 +559,7 @@ if user_prompt := st.chat_input("Ask a question..."):
 #             top_k=config.top_k, # Or make this configurable in the UI
 #             ensemble=True # Always use ensemble for best UI results
 #         )
-        
+
 #         # Format sources for display
 #         formatted_sources = "\n".join([f"- {s}" for s in sources])
 #         return answer, formatted_sources
@@ -578,25 +585,25 @@ if user_prompt := st.chat_input("Ask a question..."):
 #         # Define the markers based on the actual output of the script
 #         answer_marker = "Final Answer:"
 #         sources_marker = "Sources:"
-        
+
 #         # Find the start of the answer
 #         answer_start_pos = stdout.find(answer_marker)
 #         if answer_start_pos == -1:
 #             return "Could not find the answer marker in the script output.", ""
-            
+
 #         # Find the start of the sources
 #         sources_start_pos = stdout.find(sources_marker, answer_start_pos)
-        
+
 #         # Extract the answer text
 #         answer_text_start = answer_start_pos + len(answer_marker)
 #         answer = stdout[answer_text_start:sources_start_pos].strip()
-        
+
 #         # Extract the sources text
 #         sources = ""
 #         if sources_start_pos != -1:
 #             sources_text_start = sources_start_pos + len(sources_marker)
 #             sources = stdout[sources_text_start:].strip().replace("=","") # Clean up trailing ====
-            
+
 #         return answer, sources
 #     except Exception as e:
 #         logger.error(f"Error parsing RAG output: {e}", exc_info=True)

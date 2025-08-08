@@ -1,0 +1,21 @@
+﻿repos:
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+        language_version: python3.11
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.6
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+
+# Keep tools away from artifacts
+exclude: '^(data/|output/|embeddings/|archive/.*|helpers/older Versions/|scripts/older Version/|scripts/Working Version-1/|.*\.faiss$|.*\.pkl$|.*\.db$)'
+

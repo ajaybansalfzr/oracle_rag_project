@@ -1,0 +1,185 @@
+page_num,section_id,indexed_text
+2,25C|Oracle Fusion Cloud Financials,"25C
+G34354-01
+Copyright 2011, 2025, Oracle and/or its affiliates.
+Author: Vineeta Kumar"
+3,1 Cloud Reporting 1|Contents|Oracle Fusion Cloud Financials,Overview of Oracle Accounting Hub Reporting Cloud Service for E-Business Suite Customers ................................... 1
+3,2 Other Financial Reporting 3|Contents|Oracle Fusion Cloud Financials,"Overview of Financial Reporting Center ................................................................................................................................... 3
+Set Up Financial Reporting Center and Smart View .............................................................................................................. 5
+Oracle General Ledger Predefined Reports .............................................................................................................................. 8"
+3,Contents|Oracle Fusion Cloud Financials,Get Help ................................................................................................................................ i
+5,Get Help|Oracle Fusion Cloud Financials,"There are a number of ways to learn more about your product and interact with Oracle and other users.
+Get Help in the Applications
+Some application pages have help icons
+to give you access to contextual help. If you don't see any help icons on your page, click your user image or name in the global header and select Show Help Icons. If the page has contextual help, help icons will appear.
+Get Support
+You can get support at My Oracle Support . For accessible support, visit Oracle Accessibility Learning and Support .
+Get Training
+Increase your knowledge of Oracle Cloud by taking courses at Oracle University .
+Join Our Community
+Use Cloud Customer Connect to get information from industry experts at Oracle and in the partner community. You can join forums to connect with other customers, post questions, suggest ideas for product enhancements, and watch events.
+Learn About Accessibility
+For information about Oracle's commitment to accessibility, visit the Oracle Accessibility Program . Videos included in this guide are provided as a media alternative for text-based topics also available in this guide.
+Share Your Feedback
+We welcome your feedback about Oracle Applications user assistance. If you need clarification, find an error, or just want to tell us what you found helpful, we'd like to hear from you.
+You can email your feedback to oracle_fusion_applications_help_ww_grp@oracle.com .
+Thanks for helping us improve our user assistance!"
+7,Overview of Oracle Accounting Hub Reporting Cloud Service for E-Business Suite Customers|1 Cloud Reporting|Oracle Fusion Cloud Financials,"Oracle Accounting Hub Reporting Cloud Service provides E-Business Suite customers exceptional reporting and analytics capabilities with minimal disruption to their current financial management processes.
+The predefined integration between the Accounting Hub Reporting Cloud Service and E-Business Suite Release 12 (R12) allows E-Business Suite customers to gain real-time access to information and improve business decisions with minimal costs and reduced risk. Customers can continue to use their current financial processes for day-to-day operational accounting, and then use the Accounting Hub Reporting Cloud Service for their reporting and analysis.
+For more information, see Accounting Hub Reporting Cloud Service for E-Business Suite Customers, DOC ID 2034564.1, on My Oracle Support."
+9,Overview of Financial Reporting Center|2 Other Financial Reporting|Oracle Fusion Cloud Financials,"The Financial Reporting Center is intended to be the primary user interface for financials end users to access all seven report types.
+Financial Reporting Center
+The Financial Reporting Center includes these report types: Financial Reporting Web Studio Reports, Account Groups and Sunburst, Smart View Reports, Oracle Transactional Business Intelligence Analyses, Oracle Transactional Business Intelligence Dashboards, Oracle Analytics Publisher Reports, and Business Intelligence Mobile Apps. Other reporting tools are also available to run the same seven report types.
+This figure illustrates the report types that are available in the Financial Reporting Center.
+Reports can be accessed through various methods. However, the Financial Reporting Center provides access to every type of report, is intended to be the primary user interface for financials end users, and is tablet and smartphone friendly. In addition to accessing reports, you can add favorites, define tags, and view report details, such as type and last updated date."
+10,Overview of Financial Reporting Center|2 Other Financial Reporting|Oracle Fusion Cloud Financials,"Financial Reports are read from the Shared > Custom > Financials and My Folders directories. All other report types can be saved anywhere in the BI Catalog however, any user-defined content should be in the Shared > Custom folder. Subfolders can be created within the Shared > Custom folder.
+Seven types of reports can be run from the Financial Reporting Center and from the other reporting tools.
+Financial Reports: These reports are built off of the Oracle Financial Reporting Web Studio using data in the Oracle General Ledger balances cube. For example, company income statements and balance sheets. These reports are mainly run by users in General Ledger.
+Account Groups and Sunburst: Account groups are used to monitor key accounts in General Ledger. When a user creates an account group, it becomes visible in the Financial Reporting Center with the Sunburst visualization tool. The Sunburst visualization tool lets you interact with your account balances across various business dimensions to view balances from different perspectives. Account groups are used only in General Ledger.
+Smart View Reports: Smart View is a multidimensional pivot analysis tool combined with full Excel functionality. Smart View enables you to interactively analyze your balances and define reports using a familiar spreadsheet environment. These queries are mainly for users in General Ledger. To share Smart View queries, users can email them to other users, or they can upload the queries to the Financial Reporting Center where users can download them to a local drive for use. The Financial Reporting Center is only a place for users to upload and download Smart View queries.
+Note: To upload a Smart View report to the Financial Reporting Center: select the Open Workspace for Financial Reports task, navigate to the BI Catalog, and select Upload from the Tasks section. Be sure to upload the Excel file to one of the folder locations mentioned previously.
+Oracle Transactional Business Intelligence Analyses: These analyses and reports are built off of transactional tables using subject areas. These reports can be run by users in General Ledger, Payables, Receivables, Cash Management, Intercompany, and so on.
+Oracle Transactional Business Intelligence Dashboards: Dashboards put all the information, functions, and actions that a business user must have to do their job in one place. Dashboards are built off of Oracle Transactional Business Intelligence objects like analyses and reports. These reports can be run by users in General Ledger, Payables, Receivables, Cash Management, Intercompany, and so on.
+Oracle Analytics Publisher Reports: Most of these reports are predefined and must first be submitted and resubmitted to see the latest data by the Oracle Enterprise Scheduler through the Scheduled Processes navigation. These reports can be run by users in General Ledger, Payables, Receivables, Cash Management, Intercompany, and so on.
+BI Mobile Apps: Oracle Business Intelligence Mobile App Designer is an application that enables you to create multitouch information-driven applications with rich interaction, rich visualization, and rich media, for mobile devices such as iPhone, iPad, Android phone, tablet, and more. These reports can be run by users in General Ledger, Payables, Receivables, Cash Management, Intercompany, and so on.
+Other Reporting Tools
+Six other tools are available for reporting in Financials.
+The following table lists the other reporting tools and the types of reports they support."
+11,Overview of Financial Reporting Center|2 Other Financial Reporting|Oracle Fusion Cloud Financials,"Other Reporting Tools Report Type
+General Accounting Dashboard and Account Inspector
+Account Groups
+Reports and Analytics
+Oracle Transactional Business Intelligence Objects
+BI Catalog
+All Report Types, Except Oracle Analytics Publisher Reports
+Enterprise Performance Management Workspace
+Reports, Books, Snapshot Reports, Snapshot Books, Financial Reporting Batches, and Batch Scheduler
+Enterprise Scheduler System
+Oracle Analytics Publisher Reports
+Even though the Financial Reporting Center is designed to be the main user interface for a financial end user's reporting needs, some users may choose to use any of the six other tools for reporting in financials, such as:
+General Accounting Dashboard, which provides access to Account Groups: Uses the Account Monitor to efficiently monitor and track key account balances in real time.
+Account Inspector: Perform ad hoc queries from account groups and financial reports through drill down to underlying journals and subledger transactions.
+Reports and Analytics: This reporting tool has a panel that reflects the folder structure of the BI Catalog. Users can access and run any Oracle Transactional Business Intelligence analysis, report or dashboard. Users can't run predefined Financial Reports or Oracle Analytics Publisher reports from this interface. This interface can be used by all financials users.
+BI Catalog: A component of the Enterprise Performance Management Workspace where you can run all report types, except for predefined Oracle Analytics Publisher reports.
+Enterprise Performance Management Workspace: Create reports, books, snapshot reports, snapshot books, Financial Reporting batches, and batch scheduler, and schedule batches to automatically run and burst to email.
+Enterprise Scheduler System: Only Oracle Analytics Publisher reports can be submitted from this interface. Users access this interface by navigating to Tools > Scheduled Processes . Most financial users have access to this interface to run standard reports for General Ledger, Payables, Receivables, and so on.
+Related Topics
+Set Up Financial Reporting Center and Smart View
+How to Access EPM Narrative Reporting Reports in Financial Reporting Center"
+11,Set Up Financial Reporting Center and Smart View|2 Other Financial Reporting|Oracle Fusion Cloud Financials,"The Financial Reporting Center is a powerful tool for reviewing, designing, and presenting financial reports and analytic data. The critical choices required to configure and install the components in Financial Reporting Center consist of:
+Configuring the Financial Reporting Center"
+12,Set Up Financial Reporting Center and Smart View|2 Other Financial Reporting|Oracle Fusion Cloud Financials,"Installing Smart View, performed by your end users
+Configuring Workspace Database Connection, performed by your administrator
+Configuring Financial Reporting Center
+You have access to the reports in the Financial Reporting Center and Workspace installed with Oracle Fusion Cloud Financials. Your Oracle Fusion Business Intelligence (BI) administrator defines the folder structure in Workspace. The administrator considers your company's security requirements for folders and reports, as well as report distribution requirements for financial reporting batches.
+Security can be set on folders and reports from Workspace.
+You are granted access to the folders and reports you want to view by your BI administrator.
+Installing Smart View
+Smart View is an Excel add-in that must be loaded on each client. To download Smart View, click Navigator > Financial Reporting Center > Tasks panel drawer > Open Workspace for Financial Reports . Once the workspace is started, click Tools > Install > Smart View .
+Note: Since Smart View is an add-in to Microsoft Office products, you can install Smart View only on a Windows operating system.
+Once Smart View is installed, you must configure the connection using the Smart View Shared Connections URL. You can derive the Shared Connections URL by following these steps:
+1. From the Financial Reporting Center task panel, select Open Workspace for Financial Reporting . 2. Edit the workspace URL by removing index.jsp and adding SmartViewProviders at the end.
+Note: For example, if the workspace URL is https://example.com/workspace/index.jsp , then the shared connections URL would be https://example.com/workspace/SmartViewProviders .
+3. Copy the URL. 4. Open Excel. 5. From the Smart View menu, click Options > Advanced . 6. Paste the URL in the Shared Connections URL field. 7. Click OK .
+To connect Oracle General Ledger balances cubes in Smart View:
+1. Open Smart View from your Start menu > Programs > Microsoft Office > Microsoft Excel 2007 . 2. Navigate to the Smart View menu > Open . On the Start on the ribbon, click Smart View Panel that appears in the list of values from the ribbon. The task pane opens. 3. Click Shared Connections on the task pane. 4. Sign in with your user name and password. 5. Click the Select Server to proceed list of values.
+Note: If the Essbase Server isn't there, then it has to be added. Use the following steps:
+a. Click the Add Essbase Server link. b. Specify the Essbase Server login and password. c. Expand the Essbase server and locate the cube in it."
+13,Set Up Financial Reporting Center and Smart View|2 Other Financial Reporting|Oracle Fusion Cloud Financials,"6. Select Oracle Essbase from the list of shared connections. 7. Click the Expand to expand the list of cubes. 8. Expand your cube (name of your chart of accounts). 9. Click db . 10. Click the analysis link.
+Note: You must perform these steps only once for a new server and database.
+To set how the name and alias of the Essbase database appears:
+1. Click Options on the ribbon > select the Member Options > select Member Name Display . 2. Set one of these three options:
+Distinct Member Name . Only shows the full Essbase distinct path. Member Name and Alias : Shows both the member name and the alias. Member Name Only . Shows only the member name.
+Note: The Smart Slice feature isn't supported in General Ledger. For all other documentation, refer to the Oracle Smart View for Office User's Guide.
+Configuring Workspace Database Connections
+Administrators must create database connections from Workspace so users can access the cubes from Workspace and Financial Reporting Web Studio.
+Note: Ledger setup has to be completed before the database connection can be created. General Ledger balances cubes are created as part of ledger setup. A separate cube is created for each combination of chart of accounts and accounting calendar. A database connection is needed for each cube.
+Steps to define a database connection are:
+1. Start at the Navigator by selecting Financial Reporting Center . 2. From the Financial Reporting Center task panel, select Open Workspace for Financial Reporting . 3. From within Workspace select the Navigator menu > Applications > BI Catalog . 4. Select Tools menu > Database Connection Manager . 5. Select New button. 6. Enter a user-friendly name for the Database Connection Name . 7. Enter Essbase as the Type , your server, user name, and password. 8. Select Application (cube) and Database from the list of values. Expand the Application name to see the related Database . 9. Click the OK button twice to save your selections. 10. Click Close button in the Database Connection Manager window to save your connection.
+Note: The database connection is available in both Workspace and Financial Reporting Web Studio. Optionally, it can be set up in Financial Reporting Web Studio when putting grids on a report. This should only be done by an administrator."
+14,Oracle General Ledger Predefined Reports|2 Other Financial Reporting|Oracle Fusion Cloud Financials,"Oracle General Ledger provides predefined reports that cover the following areas: account analysis, journals, trial balance reports, reconciliation reports, charts of accounts.
+You can schedule and run reports from the Scheduled Processes work area. In some cases, you can access and open reports in the Reports and Analytics work area. Use the Browse Catalog icon on the Reports and Analytics work area to open the business intelligence (BI) Catalog. You can run and edit reports in the BI Catalog.
+The following table describes the predefined account analysis reports.
+Name Description
+Account Analysis
+Prints balances by account segment and a secondary segment for each journal entry.
+Lists the subledger document number for transactions imported from subledgers.
+General Ledger Account Details Report
+Provides journal information to trace each transaction back to its original source.
+Prints a separate page for each balancing segment value.
+For each journal line, prints:
+The account affected, the concatenated description, the journal line amount, and the beginning and ending account balance. Journal details including source, category, journal name, and effective date.
+Lists accounts in ascending order by account segment value.
+Prints a CR next to credit amounts.
+Account Analysis for Contra Account Report
+Prints balances by account segment and a secondary segment.
+Lists the contra account for each journal entry and the subledger document number for transactions imported from subledgers.
+Prints by date range, accounting flexfield range, contra account, and amount range.
+Average Balance Audit Account Analysis Report
+Displays the detail account activity that created the aggregate balances and related average balances.
+Displays daily average balance information for the selected accounts for the specified range of dates.
+Contains parameters such as the as-of reporting date, average balance type (period, quarter, or year average-to-date), and account ranges.
+Note: Use to research how average balances are calculated for an account."
+14,Set Up Financial Reporting Center and Smart View|2 Other Financial Reporting|Oracle Fusion Cloud Financials,"For more detailed information about Smart View and Financial Reporting Web Studio, refer to the Using EPM with Oracle Fusion Cloud Financials link on the Oracle Financials All Books page of the Oracle Help Center at https:// docs.oracle.com."
+15,Oracle General Ledger Predefined Reports|2 Other Financial Reporting|Oracle Fusion Cloud Financials,"The following table describes the predefined journal reports.
+Name Description
+Journals Report
+Provides journal activity for a given period or range of periods, balancing segment value, currency, and range of account segment values.
+Prints the accounting date, category, journal name, reference, journal batch name, entered debit or credit amounts, net balance, and account total for each journal.
+Includes a total for each balancing segment and a grand total for all the activity.
+General Journals Report
+Provides journal activity for a given period or range of periods, balancing segment value, currency, and range of account segment values.
+Journals Batch Summary Report
+Lists posted journal batches for a particular ledger, balancing segment value, currency, and date range.
+Provides information about actual balances for your journal batches, source, batch, and posting dates, total entered debits and credits. Sorts the information by journal batch within each journal entry category.
+Includes totals for each journal category and a grand total for each ledger and balancing segment value combination.
+Doesn't report on budget or encumbrance balances.
+Journals Details Report
+Provides information about manually entered journals prior to posting, including field by field, all data entered into the applications or data imported from external sources.
+Journals Day Book Report
+Provides posted journal entries and journal details chronologically by accounting date for a specified range of dates, journal source, and journal category.
+Note: To run the report for all journal sources and categories, clear the Source and Category fields.
+Sorts journal entries for each accounting date by document number.
+Prints the accounting date, document number, journal entry name, journal source and category, subledger document name and number, currency, and conversion rate.
+Note: When you set the General Ledger Journal Entry Summarization option, as part of the Manage Subledger Accounting Options task, to either Summarize by general ledger date or Summarize by general ledger period , the SUBLEDGER_DOC_SEQUENCE_ID and SUBLEDGER_DOC_SEQUENCE_ VALUE columns will be empty in the GL_JE_LINES table, even though document sequencing is enabled. All subledger entry lines are summarized into a single general ledger entry if the following details are the same: accounting period or date, General Ledger journal category, account, entered currency, side, balance type. As a result, the report won't display details in the Subledger Document Sequence and Subledger Document Number columns.
+Prints for each journal line, the line number, account segment value and description, functional debit and credit amounts, description, and cost center segment value.
+Reconciled Transactions Report
+Provides details of clearing account journal lines that have been successfully reconciled by both automatic and manual reconciliation processes."
+16,Oracle General Ledger Predefined Reports|2 Other Financial Reporting|Oracle Fusion Cloud Financials,"Name Description
+Unreconciled Transactions Report
+Lists all unreconciled clearing account journal lines, specifically the unreconciled lines that weren't subjected to reconciliation yet, those lines rejected by previous automatic or manual reconciliation processes, and those lines that were marked as reviewed.
+Journal and Transaction Details Report
+Lists the general ledger journals and subledger transactions activity along with header, line, and distribution-level details. Includes the account combinations on each line for the selected accounts.
+Note: You can run or schedule this report only from Oracle Analytics Publisher.
+The following table describes the predefined trial balance reports.
+Name Description
+Trial Balance Report
+Provides summarized actual account balances and activity by ledger, balancing segment, and account segment value.
+Trial Balance - Average Balances
+Provides a listing of ending balances and average balances for selected accounts based on an effective date specified.
+Prints the ledger currency or foreign-entered balances.
+Displays period, quarter, and year average-to-date balances.
+Note: Request additional information by specifying balancing segments and account ranges.
+The following table describes the predefined reconciliation reports.
+Name Description
+Cash to General Ledger Reconciliation Report
+Extracts cash management and general ledger accounting and transactional data for reconciling cash management to the general ledger.
+Payables to Ledger Reconciliation Report
+Provides both summarized and detailed reconciling data for review.
+Shows payables and accounting beginning and ending balances, as well as summarized activity for the period and how this activity was accounted.
+Receivables to Ledger Reconciliation Report
+Provides reconciliation of receivables data to the general ledger.
+Shows receivables and accounting beginning and ending balances, as well as summarized activity for the period and how the activity was accounted.
+The following table describes the predefined chart of account reports."
+17,Oracle General Ledger Predefined Reports|2 Other Financial Reporting|Oracle Fusion Cloud Financials,"Name Description
+Balancing Segment Value Assignments Report
+Reports on the assignment of primary balancing segment values to legal entities and ledgers across accounting setups.
+Allows quick identification of overlapping balancing segment value errors and reviews of any unassigned values.
+Note: The application doesn't check for overlapping balancing segment values online.
+Chart of Accounts Mapping Rules Report
+Provides both the segment and account rules defined for a specific chart of accounts mapping.
+For mappings with account rules, prints each subsidiary account range and the parent account into which it maps.
+For mapping with segment rules, prints the rule name and the parent and subsidiary segments.
+For mappings with a rollup range rule, prints each subsidiary segment value range and its corresponding parent segment value.
+To run the predefined reports, navigate to the Scheduled Processes work area and follow these steps:
+1. Click Schedule New Process . 2. Search for the process name. 3. Specify the parameters. 4. Enter the process options and schedule. 5. Click Submit ."

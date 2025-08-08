@@ -1,31 +1,33 @@
 ## AS PER RESPONE FROM GEMINI
-import sqlite3
+
 # import requests
 # import json
-from pathlib import Path
-from tqdm import tqdm
-from transformers import AutoTokenizer
-import nltk
 from itertools import groupby
 from operator import itemgetter
-import sys
-# At the top of the file
-import concurrent.futures
+
+import nltk
+from transformers import AutoTokenizer
+
+# Refactored Imports to use centralized config and utils
+from scripts import config
 
 # UPDATED: Import the logger and database utilities
 from scripts.utils.database_utils import get_db_connection
-from scripts.utils.utils import get_logger      
-# Refactored Imports to use centralized config and utils
-from scripts import config
+
 # from scripts.utils.database_utils import get_db_connection
 from scripts.utils.llm_utils import llama3_call
+from scripts.utils.utils import get_logger
+
+# At the top of the file
+
+
 # Note: get_logger is already imported from utils, which is correct.
 
 
 # Initialize logger for this script
 logger = get_logger(__name__)
 
-      
+
 # Place this after your logger initialization
 # --- Configuration for Parallel Processing ---
 # You can adjust this number based on your Ollama server's capacity and your machine's resources.
@@ -40,9 +42,8 @@ tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_MODEL_PATH)
 # Initialize tokenizer once and reuse
 try:
     TOKENIZER = AutoTokenizer.from_pretrained(
-    tokenizer_path, 
-    local_files_only=True, 
-    model_max_length=8192)  # set this to your Llama 3 context size (or less))
+        tokenizer_path, local_files_only=True, model_max_length=8192
+    )  # set this to your Llama 3 context size (or less))
 except Exception as e:
     logger.critical(f"Could not load the tokenizer model. This is a fatal error. Exception: {e}")
     raise
@@ -57,12 +58,13 @@ except Exception as e:
 
 # Ensure NLTK data is available
 try:
-    nltk.data.find('tokenizers/punkt')
+    nltk.data.find("tokenizers/punkt")
 except nltk.downloader.DownloadError:
     logger.info("Downloading 'punkt' model for sentence tokenization...")
-    nltk.download('punkt', quiet=True)
+    nltk.download("punkt", quiet=True)
 
 # --- Core Logic ---
+
 
 def generate_summary(text_to_summarize: str, section_header: str) -> str:
     """
@@ -87,6 +89,7 @@ DENSE SUMMARY:
 """
     system_prompt = "You are a technical indexing expert creating dense summaries for a semantic search system."
     return llama3_call(prompt_text, system_prompt)
+
 
 def summarize_section_worker(job_data):
     """
@@ -114,7 +117,7 @@ def chunk_text(text: str) -> list[str]:
             if current_chunk_tokens >= config.CHUNK_MIN_TOKENS:
                 chunks.append(chunk_text_content)
             # Overlap
-            overlap_sentences = current_chunk_sentences[-config.CHUNK_OVERLAP_SENTENCES:]
+            overlap_sentences = current_chunk_sentences[-config.CHUNK_OVERLAP_SENTENCES :]
             current_chunk_sentences = overlap_sentences
             current_chunk_tokens = len(TOKENIZER.encode(" ".join(overlap_sentences)))
         current_chunk_sentences.append(sentence)
@@ -128,16 +131,17 @@ def chunk_text(text: str) -> list[str]:
     logger.debug(f"Chunked text into {len(chunks)} chunks.")
     return chunks
 
+
 # def main():
 #     """
 #     Main pipeline that processes documents one-by-one, performs only token-aware chunking,
 #     and saves these chunks directly (NO LLM SUMMARIZATION!).
 #     """
 #     logger.info("--- Starting content processing (Chunking-Only Strategy, No Summarization) ---")
-    
+
 #     conn_outer = get_db_connection()
 #     docs_to_process = conn_outer.execute("""
-#         SELECT doc_id, doc_name FROM documents 
+#         SELECT doc_id, doc_name FROM documents
 #         WHERE processing_status = 'extracted' AND lifecycle_status = 'active'
 #     """).fetchall()
 #     conn_outer.close()
@@ -151,7 +155,7 @@ def chunk_text(text: str) -> list[str]:
 #     for doc in docs_to_process:
 #         doc_id, doc_name = doc['doc_id'], doc['doc_name']
 #         logger.info(f"--- Processing Document: '{doc_name}' (ID: {doc_id}) ---")
-        
+
 #         try:
 #             with get_db_connection() as conn:
 #                 cursor = conn.cursor()
@@ -215,12 +219,14 @@ def main():
     and saves these chunks directly (NO LLM SUMMARIZATION!).
     """
     logger.info("--- Starting content processing (Chunking-Only Strategy, No Summarization) ---")
-    
+
     conn_outer = get_db_connection()
-    docs_to_process = conn_outer.execute("""
+    docs_to_process = conn_outer.execute(
+        """
         SELECT doc_id, doc_name FROM documents 
         WHERE processing_status = 'extracted' AND lifecycle_status = 'active'
-    """).fetchall()
+    """
+    ).fetchall()
     conn_outer.close()
 
     if not docs_to_process:
@@ -230,33 +236,36 @@ def main():
     logger.info(f"Found {len(docs_to_process)} document(s) to process individually.")
 
     for doc in docs_to_process:
-        doc_id, doc_name = doc['doc_id'], doc['doc_name']
+        doc_id, doc_name = doc["doc_id"], doc["doc_name"]
         logger.info(f"--- Processing Document: '{doc_name}' (ID: {doc_id}) ---")
-        
+
         try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
 
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT section_id, raw_text, section_header
                     FROM sections
                     WHERE doc_id = ? AND section_summary IS NULL
                     ORDER BY section_header, page_num;
-                """, (doc_id,))
+                """,
+                    (doc_id,),
+                )
                 sections_to_process = cursor.fetchall()
 
                 if not sections_to_process:
                     logger.warning(f"Document '{doc_name}' has no unprocessed sections. Skipping to next.")
                     continue
 
-                key_func = itemgetter('section_header')
+                key_func = itemgetter("section_header")
                 grouped_logical_sections = groupby(sections_to_process, key=key_func)
                 all_chunks_for_doc = []
 
                 for section_header, group in grouped_logical_sections:
                     section_parts = list(group)
-                    full_section_text = "\n".join(part['raw_text'] for part in section_parts)
-                    primary_section_id = section_parts[0]['section_id']
+                    full_section_text = "\n".join(part["raw_text"] for part in section_parts)
+                    primary_section_id = section_parts[0]["section_id"]
 
                     # --- CHUNKING ONLY ---
                     chunks = chunk_text(full_section_text)
@@ -265,30 +274,37 @@ def main():
 
                     # Set summary as NULL/empty (since we are not summarizing)
                     for chunk_text_content in chunks:
-                        all_chunks_for_doc.append((
-                            primary_section_id, doc_id, chunk_text_content, None  # No summary!
-                        ))
+                        all_chunks_for_doc.append(
+                            (
+                                primary_section_id,
+                                doc_id,
+                                chunk_text_content,
+                                None,  # No summary!
+                            )
+                        )
 
                 # --- DB Writes ---
                 if all_chunks_for_doc:
                     cursor.executemany(
                         "INSERT INTO chunks (section_id, doc_id, chunk_text, summary) VALUES (?, ?, ?, ?)",
-                        all_chunks_for_doc
+                        all_chunks_for_doc,
                     )
                     logger.info(f"Inserted {len(all_chunks_for_doc)} chunks for doc '{doc_name}'.")
 
                 cursor.execute(
-                    "UPDATE documents SET processing_status = 'chunked_and_summarized' WHERE doc_id = ?", (doc_id,)
+                    "UPDATE documents SET processing_status = 'chunked_and_summarized' WHERE doc_id = ?",
+                    (doc_id,),
                 )
                 logger.info(f"Status updated for '{doc_name}'.")
 
         except Exception as e:
             logger.error(
-                f"Failed to process document '{doc_name}' (ID: {doc_id}). Transaction rolled back. Error: {e}", exc_info=True
+                f"Failed to process document '{doc_name}' (ID: {doc_id}). Transaction rolled back. Error: {e}",
+                exc_info=True,
             )
             continue
     logger.info("--- All documents have been attempted. Pipeline finished. ---")
-    
+
 
 if __name__ == "__main__":
     main()
@@ -309,10 +325,10 @@ if __name__ == "__main__":
 #     """
 #     if not text:
 #         return []
-    
+
 #     # 1. Split the text into sentences
 #     sentences = nltk.sent_tokenize(text)
-    
+
 #     # 2. Group sentences into chunks
 #     chunks = []
 #     current_chunk_sentences = []
@@ -320,13 +336,13 @@ if __name__ == "__main__":
 
 #     for sentence in sentences:
 #         sentence_tokens = len(TOKENIZER.encode(sentence))
-        
+
 #         # If adding the next sentence exceeds the chunk size, finalize the current chunk
 #         if current_chunk_tokens + sentence_tokens > config.CHUNK_SIZE_TOKENS and current_chunk_sentences:
 #             chunk_text_content = " ".join(current_chunk_sentences)
 #             if current_chunk_tokens >= config.CHUNK_MIN_TOKENS:
 #                 chunks.append(chunk_text_content)
-            
+
 #             # Start a new chunk with overlap
 #             overlap_sentences = current_chunk_sentences[-config.CHUNK_OVERLAP_SENTENCES:]
 #             current_chunk_sentences = overlap_sentences
@@ -373,7 +389,7 @@ if __name__ == "__main__":
 # """
 
 #     system_prompt = "You are a technical indexing expert creating dense summaries for a semantic search system."
-    
+
 #     # CRITICAL FIX: Use the centralized llama3_call utility.
 #     # It automatically uses the OLLAMA_URL and LLM_MODEL from config.py.
 #     return llama3_call(prompt_text, system_prompt)
@@ -388,7 +404,7 @@ if __name__ == "__main__":
 #     This is the definitive, corrected version with proper connection and transaction scope.
 #     """
 #     logger.info("--- Starting content processing and summarization pipeline ---")
-    
+
 #     try:
 #         # The 'with' block now correctly wraps the ENTIRE transaction.
 #         # The connection will remain open until all documents are processed,
@@ -398,7 +414,7 @@ if __name__ == "__main__":
 
 #             # Identify all active documents ready for this stage.
 #             cursor.execute("""
-#                 SELECT doc_id, doc_name FROM documents 
+#                 SELECT doc_id, doc_name FROM documents
 #                 WHERE processing_status = 'extracted' AND lifecycle_status = 'active'
 #             """)
 #             docs_to_process = cursor.fetchall()
@@ -415,13 +431,13 @@ if __name__ == "__main__":
 
 #                 # Get ONLY the sections for this document that haven't been processed.
 #                 cursor.execute("""
-#                     SELECT s.section_id, s.raw_text, s.section_header 
+#                     SELECT s.section_id, s.raw_text, s.section_header
 #                     FROM sections s
 #                     LEFT JOIN chunks c ON s.section_id = c.section_id
 #                     WHERE s.doc_id = ? AND c.chunk_id IS NULL
 #                 """, (doc_id,))
 #                 sections_to_process = cursor.fetchall()
-                
+
 #                 if not sections_to_process:
 #                     logger.warning(f"Document '{doc_name}' (ID: {doc_id}) has no unprocessed sections. Skipping.")
 #                     continue
@@ -433,7 +449,7 @@ if __name__ == "__main__":
 #                     section_summary = generate_summary(raw_text, section_header, is_section_summary=True)
 #                     cursor.execute("UPDATE sections SET section_summary = ? WHERE section_id = ?", (section_summary, section_id))
 
-#                     chunks = chunk_text(raw_text) 
+#                     chunks = chunk_text(raw_text)
 #                     for chunk_text_content in chunks:
 #                         chunk_summary = generate_summary(chunk_text_content, section_header)
 #                         all_chunks_for_doc.append((section_id, doc_id, chunk_text_content, chunk_summary))
@@ -474,7 +490,7 @@ if __name__ == "__main__":
 #         # FR-11: Idempotent Processing - Identify work to be done.
 #         # Find documents that are 'extracted' but not yet 'chunked_and_summarized'.
 #             cursor.execute("""
-#                 SELECT doc_id, doc_name FROM documents 
+#                 SELECT doc_id, doc_name FROM documents
 #                 WHERE processing_status = 'extracted' AND lifecycle_status = 'active'
 #             """)
 #             docs_to_process = cursor.fetchall()
@@ -494,7 +510,7 @@ if __name__ == "__main__":
 
 #                 # Get all sections for this document that haven't been processed
 #                 cursor.execute("""
-#                     SELECT s.section_id, s.raw_text, s.section_header 
+#                     SELECT s.section_id, s.raw_text, s.section_header
 #                     FROM sections s
 #                     LEFT JOIN chunks c ON s.section_id = c.section_id
 #                     WHERE s.doc_id = ? AND c.chunk_id IS NULL
@@ -503,7 +519,7 @@ if __name__ == "__main__":
 #                 if not sections_to_process:
 #                     logger.warning(f"Document '{doc_name}' is marked 'extracted' but has no unprocessed sections. Moving to next stage.")
 #                     continue
-                
+
 #                 all_chunks_for_doc = []
 
 #                 for section in tqdm(sections_to_process, desc=f"  - Processing Sections for '{doc_name}'", leave=False):
@@ -515,7 +531,7 @@ if __name__ == "__main__":
 #                     # --- FR-9: Tier 2 (Section-level) Summarization ---
 #                     # print(f"\n    - Generating Tier 2 summary for section: '{section_header[:50]}...'")
 #                     logger.debug(f"Generating Tier 2 summary for section: '{section_header[:50]}...'")
-                    
+
 #                     section_summary = generate_summary(raw_text, section_header, is_section_summary=True)
 #                     cursor.execute("UPDATE sections SET section_summary = ? WHERE section_id = ?", (section_summary, section_id))
 #                     # print(f"    -  Tier 2 summary generated and saved.")
@@ -523,11 +539,11 @@ if __name__ == "__main__":
 
 #                     # --- FR-12: Chunking ---
 #                     chunks = chunk_text(raw_text)
-                    
+
 #                     for chunk_text_content in chunks:
 #                         # --- FR-3 & FR-9: Tier 1 (Chunk-level) Summarization ---
 #                         chunk_summary = generate_summary(chunk_text_content, section_header)
-                        
+
 #                         all_chunks_for_doc.append((
 #                             section_id,
 #                             doc_id,
@@ -579,12 +595,12 @@ if __name__ == "__main__":
 #     within a document is still performed in parallel for performance.
 #     """
 #     logger.info("--- Starting content processing (Resilient Per-Document Strategy) ---")
-    
+
 #     # First, get a list of all documents that need processing.
 #     # This connection is brief and outside the main loop.
 #     conn_outer = get_db_connection()
 #     docs_to_process = conn_outer.execute("""
-#         SELECT doc_id, doc_name FROM documents 
+#         SELECT doc_id, doc_name FROM documents
 #         WHERE processing_status = 'extracted' AND lifecycle_status = 'active'
 #     """).fetchall()
 #     conn_outer.close()
@@ -599,7 +615,7 @@ if __name__ == "__main__":
 #     for doc in docs_to_process:
 #         doc_id, doc_name = doc['doc_id'], doc['doc_name']
 #         logger.info(f"--- Processing Document: '{doc_name}' (ID: {doc_id}) ---")
-        
+
 #         try:
 #             # Start a new transaction for EACH document. This is the core of the change.
 #             with get_db_connection() as conn:
@@ -634,7 +650,7 @@ if __name__ == "__main__":
 #                     for part in section_parts:
 #                         sections_to_update.append((section_summary, part['section_id']))
 
-#                     # --- Tier 1: Chunking ---  
+#                     # --- Tier 1: Chunking ---
 #                     chunks = chunk_text(full_section_text)
 #                     if not chunks:
 #                         # Fallback: just use the section itself
@@ -699,7 +715,7 @@ if __name__ == "__main__":
 #         #         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT_LLM_CALLS) as executor:
 #         #             results_iterator = executor.map(summarize_section_worker, summary_jobs)
 #         #             summaries = list(tqdm(results_iterator, total=len(summary_jobs), desc=f"Summarizing '{doc_name}'", ncols=100, file=sys.stdout))
-                
+
 #         #         # 4. Aggregate results and stage database writes for this document.
 #         #         chunks_to_insert = []
 #         #         sections_to_update = []
@@ -722,7 +738,7 @@ if __name__ == "__main__":
 #         #     logger.error(f"Failed to process document '{doc_name}' (ID: {doc_id}). The transaction for this document has been rolled back. Error: {e}", exc_info=True)
 #         #     # The loop will now proceed to the next document in docs_to_process.
 #         #     continue
-    
+
 #     logger.info("--- All documents have been attempted. Pipeline finished. ---")
 
 # def main():
@@ -732,13 +748,13 @@ if __name__ == "__main__":
 #     a single, unified chunk for each logical section.
 #     """
 #     logger.info("--- Starting content processing (Logical Section Grouping Strategy) ---")
-    
+
 #     try:
 #         with get_db_connection() as conn:
 #             cursor = conn.cursor()
 
 #             cursor.execute("""
-#                 SELECT doc_id, doc_name FROM documents 
+#                 SELECT doc_id, doc_name FROM documents
 #                 WHERE processing_status = 'extracted' AND lifecycle_status = 'active'
 #             """)
 #             docs_to_process = cursor.fetchall()
@@ -761,30 +777,30 @@ if __name__ == "__main__":
 #                     ORDER BY s.section_header, s.page_num
 #                 """, (doc_id,))
 #                 sections_to_process = cursor.fetchall()
-                
+
 #                 if not sections_to_process:
 #                     logger.warning(f"Document '{doc_name}' has no unprocessed sections. Skipping.")
 #                     continue
 
 #                 # Step 2: Group the fetched rows by the 'section_header'.
 #                 grouped_sections = groupby(sections_to_process, key=itemgetter('section_header'))
-                
+
 #                 chunks_to_insert = []
 #                 for section_header, section_group in tqdm(grouped_sections, desc=f"  - Grouping Sections for '{doc_name}'"):
-                    
+
 #                     section_parts = list(section_group)
 #                     full_section_text = "\n".join(part['raw_text'] for part in section_parts)
 #                     primary_section_id = section_parts[0]['section_id']
 
 #                     combined_summary = generate_summary(full_section_text, section_header, is_section_summary=True)
-                    
+
 #                     chunks_to_insert.append((
-#                         primary_section_id, 
-#                         doc_id, 
-#                         full_section_text, 
+#                         primary_section_id,
+#                         doc_id,
+#                         full_section_text,
 #                         combined_summary
 #                     ))
-                    
+
 #                     section_ids_in_group = [part['section_id'] for part in section_parts]
 #                     update_data = [(combined_summary, sec_id) for sec_id in section_ids_in_group]
 #                     cursor.executemany("UPDATE sections SET section_summary = ? WHERE section_id = ?", update_data)
@@ -794,7 +810,7 @@ if __name__ == "__main__":
 #                         "INSERT INTO chunks (section_id, doc_id, chunk_text, summary) VALUES (?, ?, ?, ?)",
 #                         chunks_to_insert
 #                     )
-                
+
 #                 cursor.execute("UPDATE documents SET processing_status = 'chunked_and_summarized' WHERE doc_id = ?", (doc_id,))
 
 #     except sqlite3.Error as e:
@@ -812,7 +828,7 @@ if __name__ == "__main__":
 #     chunk in an atomic transaction.
 #     """
 #     logger.info("--- Starting content processing (Logical Section Grouping Strategy) ---")
-    
+
 #     try:
 #         with get_db_connection() as conn:
 #             cursor = conn.cursor()
@@ -845,22 +861,22 @@ if __name__ == "__main__":
 #             # Group by both doc_id and section_header to handle sections with the same name across different docs
 #             key_func = itemgetter('doc_id', 'section_header')
 #             grouped_logical_sections = groupby(sections_to_process, key=key_func)
-            
+
 #             chunks_to_insert = []
 #             sections_to_update = []
 #             processed_doc_ids = set()
 
 #             for (doc_id, section_header), group in tqdm(grouped_logical_sections, desc="Processing logical sections", mininterval=1, ncols=100, file=sys.stdout):
-                
+
 #                 section_parts = list(group)
 #                 full_section_text = "\n".join(part['raw_text'] for part in section_parts)
-                
+
 #                 # Use the section_id from the first part of the group as the primary reference
 #                 primary_section_id = section_parts[0]['section_id']
-                
+
 #                 # Generate a single summary for the entire combined text
 #                 combined_summary = generate_summary(full_section_text, section_header)
-                
+
 #                 # Prepare data for batch insertion/updation
 #                 chunks_to_insert.append((
 #                     primary_section_id,
@@ -868,7 +884,7 @@ if __name__ == "__main__":
 #                     full_section_text,
 #                     combined_summary
 #                 ))
-                
+
 #                 # Mark all constituent section parts as processed by adding the same summary
 #                 for part in section_parts:
 #                     sections_to_update.append((combined_summary, part['section_id']))
@@ -882,14 +898,14 @@ if __name__ == "__main__":
 #                     chunks_to_insert
 #                 )
 #                 logger.info(f"Staged {len(chunks_to_insert)} unified chunks for insertion.")
-            
+
 #             if sections_to_update:
 #                 cursor.executemany(
 #                     "UPDATE sections SET section_summary = ? WHERE section_id = ?",
 #                     sections_to_update
 #                 )
 #                 logger.info(f"Staged {len(sections_to_update)} section parts for summary updates.")
-            
+
 #             if processed_doc_ids:
 #                 # Convert set to list for executemany
 #                 doc_ids_to_update_status = [(doc_id,) for doc_id in processed_doc_ids]
@@ -918,7 +934,7 @@ if __name__ == "__main__":
 #     changes in a single atomic transaction.
 #     """
 #     logger.info("--- Starting content processing (High-Performance Parallel Strategy) ---")
-    
+
 #     try:
 #         with get_db_connection() as conn:
 #             cursor = conn.cursor()
@@ -950,7 +966,7 @@ if __name__ == "__main__":
 #             # --- PHASE 1: PREPARE ALL JOBS. NO LLM CALLS HERE. ---
 #             key_func = itemgetter('doc_id', 'section_header')
 #             grouped_logical_sections = groupby(sections_to_process, key=key_func)
-            
+
 #             summary_jobs = []       # A list of tuples: (text_to_summarize, section_header)
 #             job_metadata = []       # A parallel list to store IDs to link results back
 
@@ -958,10 +974,10 @@ if __name__ == "__main__":
 #             for (doc_id, section_header), group in grouped_logical_sections:
 #                 section_parts = list(group)
 #                 full_section_text = "\n".join(part['raw_text'] for part in section_parts)
-                
+
 #                 # Add the actual work to the jobs list
 #                 summary_jobs.append((full_section_text, section_header))
-                
+
 #                 # Store the corresponding metadata to re-associate the result later
 #                 job_metadata.append({
 #                     "doc_id": doc_id,
@@ -978,10 +994,10 @@ if __name__ == "__main__":
 #             with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT_LLM_CALLS) as executor:
 #                 # Use executor.map for a clean way to process jobs and get results in order
 #                 results_iterator = executor.map(summarize_section_worker, summary_jobs)
-                
+
 #                 # Wrap with tqdm for a real-time progress bar of the parallel execution
 #                 summaries = list(tqdm(results_iterator, total=len(summary_jobs), desc="Generating Summaries Concurrently", ncols=100, file=sys.stdout))
-            
+
 #             logger.info("Phase 2 Complete: All summaries have been generated.")
 
 #             # --- PHASE 3: AGGREGATE RESULTS AND BATCH-WRITE TO DATABASE ---
@@ -993,7 +1009,7 @@ if __name__ == "__main__":
 #             for i, combined_summary in enumerate(summaries):
 #                 meta = job_metadata[i]
 #                 doc_id = meta['doc_id']
-                
+
 #                 # Prepare data for the 'chunks' table insertion
 #                 chunks_to_insert.append((
 #                     meta['primary_section_id'],
@@ -1001,7 +1017,7 @@ if __name__ == "__main__":
 #                     meta['full_text'],
 #                     combined_summary
 #                 ))
-                
+
 #                 # Prepare data to update all constituent 'sections'
 #                 for sec_id in meta['all_section_ids']:
 #                     sections_to_update.append((combined_summary, sec_id))
@@ -1015,14 +1031,14 @@ if __name__ == "__main__":
 #                     chunks_to_insert
 #                 )
 #                 logger.info(f"Staged {len(chunks_to_insert)} unified chunks for insertion.")
-            
+
 #             if sections_to_update:
 #                 cursor.executemany(
 #                     "UPDATE sections SET section_summary = ? WHERE section_id = ?",
 #                     sections_to_update
 #                 )
 #                 logger.info(f"Staged {len(sections_to_update)} section parts for summary updates.")
-            
+
 #             if processed_doc_ids:
 #                 doc_ids_to_update_status = [(doc_id,) for doc_id in processed_doc_ids]
 #                 cursor.executemany(
