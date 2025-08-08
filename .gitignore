@@ -40,3 +40,24 @@ Thumbs.db
 
 # Ignore Jupyter notebook checkpoints (if you add any)
 .ipynb_checkpoints/
+
+# Databases / indexes / artifacts
+*.db
+*.sqlite
+*.sqlite3
+*.faiss
+*.index
+*.pkl
+*.npy
+*.npz
+*.parquet
+output/logs/
+logs/
+
+# IDEs
+.vscode/
+.idea/
+
+# Hugging Face / cache (if used)
+.cache/
+.huggingface/

@@ -1,6 +1,8 @@
 import csv
+
 import fitz  # PyMuPDF
 from spire.pdf import PdfDocument
+
 
 # ====== Hyperlink Extraction ====== #
 def extract_hyperlinks(pdf_path):
@@ -13,11 +15,7 @@ def extract_hyperlinks(pdf_path):
             if link.get("uri"):
                 rect = fitz.Rect(link["from"])
                 anchor_text = page.get_textbox(rect).strip()
-                links_data.append({
-                    "page": page_num,
-                    "anchor_text": anchor_text,
-                    "uri": link["uri"]
-                })
+                links_data.append({"page": page_num, "anchor_text": anchor_text, "uri": link["uri"]})
     doc.close()
     return links_data
 
@@ -55,14 +53,16 @@ def extract_bookmarks_with_fonts(pdf_path):
                                 break
 
             # Add all collected info
-            bookmarks.append({
-                "title": title,
-                "page": page_num,
-                "level": level,
-                "font_size": font_size,
-                "font_color": font_color,
-                "is_bold": is_bold
-            })
+            bookmarks.append(
+                {
+                    "title": title,
+                    "page": page_num,
+                    "level": level,
+                    "font_size": font_size,
+                    "font_color": font_color,
+                    "is_bold": is_bold,
+                }
+            )
 
             children = bookmark.ConvertToBookmarkCollection()
             if children and children.Count > 0:
@@ -72,14 +72,17 @@ def extract_bookmarks_with_fonts(pdf_path):
     spire_pdf.Close()
     return bookmarks
 
+
 # ===== CSV Save ===== #
 def save_bookmarks_to_csv(bookmarks, output_path):
     with open(output_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=[
-            "title", "page", "level", "font_size", "font_color", "is_bold"
-        ])
+        writer = csv.DictWriter(
+            f,
+            fieldnames=["title", "page", "level", "font_size", "font_color", "is_bold"],
+        )
         writer.writeheader()
         writer.writerows(bookmarks)
+
 
 # ====== Main ====== #
 if __name__ == "__main__":

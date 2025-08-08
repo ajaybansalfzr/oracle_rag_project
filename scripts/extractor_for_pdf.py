@@ -1,30 +1,23 @@
 # scripts/extractor_for_pdf.py
 
-import fitz  # PyMuPDF
-from pathlib import Path
-from collections import defaultdict, Counter
+import sys  # Add this import at the top of the file
+from collections import defaultdict
 from itertools import groupby
+
+import fitz  # PyMuPDF
 from tqdm import tqdm
-import sqlite3
-import sys # Add this import at the top of the file
 
 try:
-    from PIL import Image
     import pytesseract
+    from PIL import Image
 except ImportError:
     Image = None
     pytesseract = None
 
 # Refactored Imports (v1.9) to use centralized config and utils
 from scripts import config
-from scripts.utils.database_utils import initialize_database, get_db_connection, calculate_file_hash
-from scripts.utils.vector_store_utils import remove_document_vectors
-from scripts.utils.utils import (
-    get_logger,
-    clean_text,
-    classify_paragraph_font_sizes,
-    extract_page_enrichments
-)
+from scripts.utils.database_utils import calculate_file_hash, get_db_connection, initialize_database
+from scripts.utils.utils import classify_paragraph_font_sizes, clean_text, extract_page_enrichments, get_logger
 
 logger = get_logger(__name__)
 
@@ -33,11 +26,13 @@ if Image is None or pytesseract is None:
     # On some systems, you may need to specify the path to the Tesseract executable.
     # For example, on Windows: pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
+
 def get_logical_breadcrumb(heading_stack):
     """
     Builds a breadcrumb string like 'Chapter > Section > Subsection' from the current heading stack.
     """
     return " > ".join([v for k, v in sorted(heading_stack.items(), reverse=True) if v])
+
 
 def detect_procedure(text):
     """
@@ -48,23 +43,25 @@ def detect_procedure(text):
         return text
     return None
 
+
 def extract_image_summary(block):
     """
     Returns a basic summary or caption for an image block, if found.
     """
     # You may want to expand this logic for more robust captioning.
     # For now, just use the block's 'caption' field, or mark as 'Image found'.
-    return block.get('caption', 'Image found') if isinstance(block, dict) else 'Image found'
+    return block.get("caption", "Image found") if isinstance(block, dict) else "Image found"
+
 
 def format_table_as_markdown(table_block):
     """
     Attempts to extract and format table data as Markdown/CSV.
     """
     try:
-        rows = table_block.get('lines', [])
+        rows = table_block.get("lines", [])
         table_rows = []
         for row in rows:
-            cells = [span.get('text', '') for span in row.get('spans', [])]
+            cells = [span.get("text", "") for span in row.get("spans", [])]
             table_rows.append(" | ".join(cells))
         return "\n".join(table_rows)
     except Exception:
@@ -84,7 +81,7 @@ def _get_ocr_text_from_page(page: fitz.Page) -> str:
         pix = page.get_pixmap(dpi=300)
         img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
         ocr_text = pytesseract.image_to_string(img)
-        
+
         if ocr_text.strip():
             logger.info(f"OCR successful for page {page.number + 1}.")
             return clean_text(ocr_text)
@@ -94,6 +91,7 @@ def _get_ocr_text_from_page(page: fitz.Page) -> str:
     except Exception as ocr_error:
         logger.error(f"OCR process failed for page {page.number + 1}: {ocr_error}", exc_info=True)
         return ""
+
 
 # def extract_semantic_chunks(pdf_document):
 #     chunks = []
@@ -140,51 +138,58 @@ def _get_ocr_text_from_page(page: fitz.Page) -> str:
 #             chunks.append(current_chunk.copy())
 #     return chunks
 
+
 def evaluate_against_golden(golden_path, conn):
     """
     Compares extracted sections to golden answer file (CSV with columns: question, expected_answer).
     Logs hit/miss for each question and writes the results to golden_eval_results.csv.
     """
     import csv
+
     logger.info(f"Running golden question evaluation: {golden_path}")
     results = []
-    with open(golden_path, 'r', encoding='utf-8') as f:
+    with open(golden_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            question, expected = row['question'], row['expected_answer']
+            question, expected = row["question"], row["expected_answer"]
             found = False
             for r in conn.execute(
-                "SELECT page_num, section_header, raw_text FROM sections WHERE raw_text LIKE ?", 
-                (f"%{expected}%",)
+                "SELECT page_num, section_header, raw_text FROM sections WHERE raw_text LIKE ?",
+                (f"%{expected}%",),
             ):
                 logger.info(
                     f"GOLDEN HIT: Question: '{question}' found in Section '{r['section_header']}' on page {r['page_num']}"
                 )
-                results.append({
-                    'question': question,
-                    'expected_answer': expected,
-                    'result': 'HIT',
-                    'section': r['section_header'],
-                    'page': r['page_num']
-                })
+                results.append(
+                    {
+                        "question": question,
+                        "expected_answer": expected,
+                        "result": "HIT",
+                        "section": r["section_header"],
+                        "page": r["page_num"],
+                    }
+                )
                 found = True
                 break
             if not found:
                 logger.warning(f"GOLDEN MISS: Question: '{question}' NOT found in any section.")
-                results.append({
-                    'question': question,
-                    'expected_answer': expected,
-                    'result': 'MISS',
-                    'section': '',
-                    'page': ''
-                })
+                results.append(
+                    {
+                        "question": question,
+                        "expected_answer": expected,
+                        "result": "MISS",
+                        "section": "",
+                        "page": "",
+                    }
+                )
     # Write results to CSV file
-    out_path = 'golden_eval_results.csv'
-    with open(out_path, 'w', newline='', encoding='utf-8') as outcsv:
+    out_path = "golden_eval_results.csv"
+    with open(out_path, "w", newline="", encoding="utf-8") as outcsv:
         writer = csv.DictWriter(outcsv, fieldnames=results[0].keys())
         writer.writeheader()
         writer.writerows(results)
     logger.info(f"Golden evaluation results written to {out_path}.")
+
 
 # At the bottom of your script (or inside main), keep this:
 if len(sys.argv) > 1 and sys.argv[1].endswith(".csv"):
@@ -213,11 +218,12 @@ if len(sys.argv) > 1 and sys.argv[1].endswith(".csv"):
 # if len(sys.argv) > 1 and sys.argv[1].endswith(".csv"):
 #     evaluate_against_golden(sys.argv[1], get_db_connection())
 
+
 def main():
     """Processes new PDFs, handles updates via FR-24, and saves structured data to the DB."""
     logger.info("--- Starting PDF Extraction Process ---")
     initialize_database()
-    
+
     # Use paths from config file
     config.DATA_DIR.mkdir(exist_ok=True)
     config.PROCESSED_DIR.mkdir(exist_ok=True)
@@ -241,26 +247,34 @@ def main():
             file_hash = calculate_file_hash(pdf_path)
 
             # FR-24: Granular document update logic
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT doc_id, file_hash FROM documents
                 WHERE doc_name = ? AND lifecycle_status = 'active'
-            """, (doc_name,))
+            """,
+                (doc_name,),
+            )
             active_doc = cursor.fetchone()
 
             if active_doc:
-                if active_doc['file_hash'] == file_hash:
-                    logger.info(f"Document '{doc_name}' with identical content is already active and processed. Skipping.")
+                if active_doc["file_hash"] == file_hash:
+                    logger.info(
+                        f"Document '{doc_name}' with identical content is already active and processed. Skipping."
+                    )
                     successfully_processed_paths.append(pdf_path)
                     continue
                 else:
                     # Implement the "soft-delete" archival strategy.
-                    old_doc_id = active_doc['doc_id']
+                    old_doc_id = active_doc["doc_id"]
                     logger.warning(
                         f"Found updated version of '{doc_name}'. "
                         f"Archiving old version (doc_id: {old_doc_id}) and processing new one."
                     )
                     # Instead of deleting, we update its status, preserving all historical data and vectors.
-                    cursor.execute("UPDATE documents SET lifecycle_status = 'archived' WHERE doc_id = ?", (old_doc_id,))
+                    cursor.execute(
+                        "UPDATE documents SET lifecycle_status = 'archived' WHERE doc_id = ?",
+                        (old_doc_id,),
+                    )
                     # conn.commit()
                     logger.info(f"Old document version (doc_id: {old_doc_id}) successfully archived.")
                     # NOTE: We DO NOT call remove_document_vectors. The query logic will be updated
@@ -278,14 +292,13 @@ def main():
             #         logger.warning(f"Found updated version of '{doc_name}'. Deleting old data as per FR-24.")
             #         old_doc_id = existing_doc['doc_id']
 
-                    
-                    # # Step 1: Delete vectors from FAISS/BM25 indexes first
-                    # remove_document_vectors(old_doc_id)
-                    
-                    # # Step 2: Delete from the database (ON DELETE CASCADE handles children)
-                    # cursor.execute("DELETE FROM documents WHERE doc_id = ?", (old_doc_id,))
-                    # conn.commit()
-                    # logger.info(f"Old database entries for doc_id {old_doc_id} removed. Proceeding with new version.")
+            # # Step 1: Delete vectors from FAISS/BM25 indexes first
+            # remove_document_vectors(old_doc_id)
+
+            # # Step 2: Delete from the database (ON DELETE CASCADE handles children)
+            # cursor.execute("DELETE FROM documents WHERE doc_id = ?", (old_doc_id,))
+            # conn.commit()
+            # logger.info(f"Old database entries for doc_id {old_doc_id} removed. Proceeding with new version.")
 
             with fitz.open(pdf_path) as doc:
                 logger.info("Pass 1/2: Analyzing font structure...")
@@ -299,15 +312,23 @@ def main():
                 heading_stack = defaultdict(str)
 
                 logger.info("Pass 2/2: Extracting text, enrichments, and building hierarchy...")
-                for page in tqdm(doc, desc=f"  - Scanning Pages for {doc_name}", mininterval=1, ncols=100, file=sys.stdout):
+                for page in tqdm(
+                    doc,
+                    desc=f"  - Scanning Pages for {doc_name}",
+                    mininterval=1,
+                    ncols=100,
+                    file=sys.stdout,
+                ):
                     # Part A: Extract Page-level Enrichments (FR-10)
                     enrichments = extract_page_enrichments(page, body_y_bounds)
 
                     # Part B: Extract Text Blocks and Build Hierarchy
                     page_height = page.rect.height
                     body_blocks = [
-                        b for b in page.get_text("dict").get("blocks", []) if b.get("type") == 0 and
-                        (body_y_bounds[0] * page_height < b['bbox'][1] < body_y_bounds[1] * page_height)
+                        b
+                        for b in page.get_text("dict").get("blocks", [])
+                        if b.get("type") == 0
+                        and (body_y_bounds[0] * page_height < b["bbox"][1] < body_y_bounds[1] * page_height)
                     ]
 
                     # FR-22: OCR Fallback Logic
@@ -329,33 +350,37 @@ def main():
                     if not body_blocks:
                         ocr_text = _get_ocr_text_from_page(page)
                         if ocr_text:
-                            structured_rows.append({
-                                "page_num": page.number + 1,
-                                "section_id": "Scanned Content (OCR)",
-                                "indexed_text": ocr_text,
-                                "header_text": enrichments.get('header_text', ''),
-                                "footer_text": enrichments.get('footer_text', ''),
-                                "hyperlink_text": enrichments.get('hyperlink_text', ''),
-                                "table_text": enrichments.get('table_text', ''),
-                                "breadcrumb_path": "",
-                                "procedure_title": "",
-                                "table_summary": "",
-                                "image_summary": "",    
-                                # **enrichments
-                            })
-                        continue # Skip to the next page whether OCR succeeded or not
+                            structured_rows.append(
+                                {
+                                    "page_num": page.number + 1,
+                                    "section_id": "Scanned Content (OCR)",
+                                    "indexed_text": ocr_text,
+                                    "header_text": enrichments.get("header_text", ""),
+                                    "footer_text": enrichments.get("footer_text", ""),
+                                    "hyperlink_text": enrichments.get("hyperlink_text", ""),
+                                    "table_text": enrichments.get("table_text", ""),
+                                    "breadcrumb_path": "",
+                                    "procedure_title": "",
+                                    "table_summary": "",
+                                    "image_summary": "",
+                                    # **enrichments
+                                }
+                            )
+                        continue  # Skip to the next page whether OCR succeeded or not
 
                     # Process regular text blocks
                     for b in body_blocks:
                         try:
-                            block_text = clean_text(" ".join(s['text'] for l in b["lines"] for s in l["spans"]))
-                            if not block_text: continue
-                            fsize = round(b["lines"][0]["spans"][0]['size'])
-                            
+                            block_text = clean_text(" ".join(s["text"] for l in b["lines"] for s in l["spans"]))
+                            if not block_text:
+                                continue
+                            fsize = round(b["lines"][0]["spans"][0]["size"])
+
                             if fsize not in paragraph_sizes:
                                 heading_stack[fsize] = block_text
                                 for smaller_size in list(heading_stack):
-                                    if smaller_size < fsize: heading_stack[smaller_size] = ""
+                                    if smaller_size < fsize:
+                                        heading_stack[smaller_size] = ""
                             else:
                                 # ordered_headings = [heading_stack[k] for k in sorted(heading_stack.keys(), reverse=True) if heading_stack[k]]
                                 # section_id = "|".join(ordered_headings) or "Introduction"
@@ -363,35 +388,45 @@ def main():
                                 #     "page_num": page.number + 1, "section_id": section_id,
                                 #     "indexed_text": block_text, **enrichments
                                 # })
-                                ordered_headings = [heading_stack[k] for k in sorted(heading_stack.keys(), reverse=True) if heading_stack[k]]
+                                ordered_headings = [
+                                    heading_stack[k]
+                                    for k in sorted(heading_stack.keys(), reverse=True)
+                                    if heading_stack[k]
+                                ]
                                 section_id = "|".join(ordered_headings) or "Introduction"
 
                                 # --- Modern 2025: Extract advanced metadata ---
                                 breadcrumb_path = get_logical_breadcrumb(heading_stack)
                                 procedure_title = detect_procedure(block_text)
-                                table_summary = enrichments.get('table_text')
-                                if 'table' in str(b.get('type', '')).lower():
-                                    table_summary = format_table_as_markdown(b)  # If you want, you can summarize tables more deeply
+                                table_summary = enrichments.get("table_text")
+                                if "table" in str(b.get("type", "")).lower():
+                                    table_summary = format_table_as_markdown(
+                                        b
+                                    )  # If you want, you can summarize tables more deeply
                                 image_summary = None
-                                if 'image' in str(b.get('type', '')).lower():  # crude image block check
-                                    image_summary = extract_image_summary(b)  # Placeholder: add image extraction logic if needed
+                                if "image" in str(b.get("type", "")).lower():  # crude image block check
+                                    image_summary = extract_image_summary(
+                                        b
+                                    )  # Placeholder: add image extraction logic if needed
 
-                                structured_rows.append({
-                                    "page_num": page.number + 1, 
-                                    "section_id": section_id,
-                                    "indexed_text": block_text,
-                                    "header_text": enrichments.get('header_text', ''),
-                                    "footer_text": enrichments.get('footer_text', ''),
-                                    "hyperlink_text": enrichments.get('hyperlink_text', ''),
-                                    "table_text": enrichments.get('table_text', ''),
-                                    "breadcrumb_path": breadcrumb_path,
-                                    "procedure_title": procedure_title,
-                                    "table_summary": table_summary,
-                                    "image_summary": image_summary,
-                                })
+                                structured_rows.append(
+                                    {
+                                        "page_num": page.number + 1,
+                                        "section_id": section_id,
+                                        "indexed_text": block_text,
+                                        "header_text": enrichments.get("header_text", ""),
+                                        "footer_text": enrichments.get("footer_text", ""),
+                                        "hyperlink_text": enrichments.get("hyperlink_text", ""),
+                                        "table_text": enrichments.get("table_text", ""),
+                                        "breadcrumb_path": breadcrumb_path,
+                                        "procedure_title": procedure_title,
+                                        "table_summary": table_summary,
+                                        "image_summary": image_summary,
+                                    }
+                                )
                         except (IndexError, KeyError):
                             continue
-            
+
             # This section is now outside the 'with fitz.open(...)' block
             logger.info("Assembling and saving final structured data to database...")
             if not structured_rows:
@@ -401,36 +436,50 @@ def main():
             # Group all paragraphs from the same section on the same page
             keyfunc = lambda r: (r["page_num"], r["section_id"])
             structured_rows.sort(key=keyfunc)
-            
+
             sections_to_insert = []
             for (page_num, section_id), group in groupby(structured_rows, key=keyfunc):
                 group_list = list(group)
                 first_row = group_list[0]
                 full_text = "\n".join(r["indexed_text"] for r in group_list)
-                
-                sections_to_insert.append((
-                    page_num, section_id, full_text,
-                    first_row['header_text'], first_row['footer_text'],
-                    first_row['hyperlink_text'], first_row['table_text'],
-                    first_row['breadcrumb_path'], first_row['procedure_title'],
-                    first_row['table_summary'], first_row['image_summary']
-                ))
+
+                sections_to_insert.append(
+                    (
+                        page_num,
+                        section_id,
+                        full_text,
+                        first_row["header_text"],
+                        first_row["footer_text"],
+                        first_row["hyperlink_text"],
+                        first_row["table_text"],
+                        first_row["breadcrumb_path"],
+                        first_row["procedure_title"],
+                        first_row["table_summary"],
+                        first_row["image_summary"],
+                    )
+                )
 
             # Insert document record and get its ID
             # cursor.execute("INSERT INTO documents (doc_name, file_hash, status) VALUES (?, ?, ?)", (doc_name, file_hash, 'extracted'))
-             # Corrected Version:
-            cursor.execute("INSERT INTO documents (doc_name, file_hash, processing_status) VALUES (?, ?, ?)", (doc_name, file_hash, 'extracted'))
+            # Corrected Version:
+            cursor.execute(
+                "INSERT INTO documents (doc_name, file_hash, processing_status) VALUES (?, ?, ?)",
+                (doc_name, file_hash, "extracted"),
+            )
             doc_id = cursor.lastrowid
 
             # Prepare final section data with the correct doc_id
             final_sections_data = [(doc_id, *s) for s in sections_to_insert]
 
-            cursor.executemany("""
+            cursor.executemany(
+                """
                 INSERT INTO sections (doc_id, page_num, section_header, raw_text,
                                       header_text, footer_text, hyperlink_text, table_text,
                                     breadcrumb_path, procedure_title, table_summary, image_summary)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, final_sections_data)
+            """,
+                final_sections_data,
+            )
 
             conn.commit()
             logger.info(f"Successfully saved {len(final_sections_data)} sections for '{doc_name}' to the database.")
@@ -438,11 +487,12 @@ def main():
 
         except Exception as e:
             logger.critical(f"FATAL ERROR processing {doc_name}: {e}", exc_info=True)
-            if conn: conn.rollback()
+            if conn:
+                conn.rollback()
         finally:
-            if conn: conn.close()
+            if conn:
+                conn.close()
 
-    
     # if successfully_processed_paths:
     #     logger.info("--- Moving processed files to archive ---")
     #     for path in successfully_processed_paths:
@@ -465,10 +515,11 @@ def main():
                     f"FATAL: FAILED to move processed file '{path.name}' to '{config.PROCESSED_DIR}'. "
                     f"The database transaction was committed, but the source file was not moved. "
                     f"Please move it manually to prevent processing issues. Error: {e}",
-                    exc_info=True
+                    exc_info=True,
                 )
 
     logger.info("--- PDF Extraction Process Finished ---")
+
 
 if __name__ == "__main__":
     main()

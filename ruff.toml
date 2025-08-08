@@ -1,0 +1,19 @@
+line-length = 120
+
+# Do not lint legacy/archived code right now
+extend-exclude = [
+  "helpers/older Versions/**",
+  "scripts/older Version/**",
+  "scripts/Working Version-1/**",
+]
+
+[lint]
+# Only keep error classes; ignore long lines globally to reduce noise
+select = ["E", "F"]
+ignore = ["E501"]
+
+[lint.per-file-ignores]
+# Intentional patterns in live files
+"scripts/extractor_for_pdf.py" = ["E731", "E741"]
+"scripts/ui_app.py"            = ["E402"]
+"scripts/tasks.py"             = ["E402"]

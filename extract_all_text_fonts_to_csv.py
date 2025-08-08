@@ -1,5 +1,7 @@
-import fitz  # PyMuPDF
 import csv
+
+import fitz  # PyMuPDF
+
 
 def extract_all_text_with_fonts(pdf_path):
     doc = fitz.open(pdf_path)
@@ -16,27 +18,31 @@ def extract_all_text_with_fonts(pdf_path):
                     font_size = span.get("size", 0)
                     text = span.get("text", "").strip()
                     if text:
-                        extracted.append({
-                            "Page": page_num,
-                            "Text": text,
-                            "Font_Name": font_name,
-                            "Font_Size": font_size,
-                            "Font_Color": font_color,
-                            "Is_Bold": is_bold,
-                            "X0": span.get("bbox", [None, None, None, None])[0],
-                            "Y0": span.get("bbox", [None, None, None, None])[1],
-                            "X1": span.get("bbox", [None, None, None, None])[2],
-                            "Y1": span.get("bbox", [None, None, None, None])[3],
-                        })
+                        extracted.append(
+                            {
+                                "Page": page_num,
+                                "Text": text,
+                                "Font_Name": font_name,
+                                "Font_Size": font_size,
+                                "Font_Color": font_color,
+                                "Is_Bold": is_bold,
+                                "X0": span.get("bbox", [None, None, None, None])[0],
+                                "Y0": span.get("bbox", [None, None, None, None])[1],
+                                "X1": span.get("bbox", [None, None, None, None])[2],
+                                "Y1": span.get("bbox", [None, None, None, None])[3],
+                            }
+                        )
 
     doc.close()
     return extracted
+
 
 def save_text_data_to_csv(data, output_path):
     with open(output_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=data[0].keys())
         writer.writeheader()
         writer.writerows(data)
+
 
 # ===== MAIN ===== #
 if __name__ == "__main__":
