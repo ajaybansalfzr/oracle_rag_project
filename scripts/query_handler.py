@@ -423,21 +423,97 @@ def rerank_and_format_context(query: str, chunk_ids: List[int], max_tokens: int)
 
     logger.info(f"Packed {len(packed_chunk_ids)} chunks into a context of ~{current_token_count} tokens.")
 
-    # --- Fetch rich context for the packed chunks ---
+    # # --- Fetch rich context for the packed chunks ---
+    # with sqlite3.connect(meta_path, uri=True) as meta_conn:
+    #     meta_conn.row_factory = sqlite3.Row
+    #     placeholders_packed = ','.join('?' for _ in packed_chunk_ids)
+    #     order_map = {cid: i for i, cid in enumerate(packed_chunk_ids)}
+    #     query_text_packed = f"SELECT * FROM metadata WHERE chunk_id IN ({placeholders_packed})"
+    #     final_rows_unordered = meta_conn.execute(query_text_packed, tuple(packed_chunk_ids)).fetchall()
+    #     final_rows = sorted(final_rows_unordered, key=lambda r: order_map[r['chunk_id']])
+
+    # context_parts, citations = [], []
+    # for row in final_rows:
+    #     context_parts.append(f"---\nSource Document: {row['doc_name']}\nPage: {row['page_num']}\nSection: {row['section_header']}\nContent: {row['raw_text']}\n---")
+    #     citations.append(f"Source: {row['doc_name']}, Page: {row['page_num']}")
+    
+    # return "\n\n".join(context_parts), list(dict.fromkeys(citations))
+    # --- Fetch rich context for the packed chunks, enriched with section metadata ---
     with sqlite3.connect(meta_path, uri=True) as meta_conn:
         meta_conn.row_factory = sqlite3.Row
         placeholders_packed = ','.join('?' for _ in packed_chunk_ids)
-        order_map = {cid: i for i, cid in enumerate(packed_chunk_ids)}
+        order_map = {cid: i for i, cid in enumerate(packed_chunk_ids)}  
         query_text_packed = f"SELECT * FROM metadata WHERE chunk_id IN ({placeholders_packed})"
         final_rows_unordered = meta_conn.execute(query_text_packed, tuple(packed_chunk_ids)).fetchall()
         final_rows = sorted(final_rows_unordered, key=lambda r: order_map[r['chunk_id']])
 
+    # For extra section info, open a connection to the main DB
+    main_db_conn = get_db_connection()
+    main_db_conn.row_factory = sqlite3.Row
+
     context_parts, citations = [], []
     for row in final_rows:
-        context_parts.append(f"---\nSource Document: {row['doc_name']}\nPage: {row['page_num']}\nSection: {row['section_header']}\nContent: {row['raw_text']}\n---")
-        citations.append(f"Source: {row['doc_name']}, Page: {row['page_num']}")
-    
+        # Find the corresponding section for this chunk (by doc_id and section_header or, ideally, section_id if available)
+        # If section_id is not present in the chunk metadata, get it from the chunks table
+        section_id = None
+        try:
+            # Try to get section_id directly if your metadata table includes it (recommended for future!)
+            section_id = row.get('section_id', None)
+        except Exception:
+            section_id = None
+
+        if not section_id:
+            # Fallback: look up section_id from the chunks table using chunk_id (this will always work)
+            res = main_db_conn.execute(
+                "SELECT section_id FROM chunks WHERE chunk_id = ?",
+                (row['chunk_id'],)
+            ).fetchone()
+            if res:
+                section_id = res['section_id']
+
+        # Now get section-level info
+        section_row = None
+        if section_id:
+            section_row = main_db_conn.execute(
+                "SELECT header_text, footer_text, hyperlink_text, table_text, breadcrumb_path, procedure_title FROM sections WHERE section_id = ?",
+                (section_id,)
+            ).fetchone()
+
+        # Format extra fields or use (None) fallback
+        header_text = section_row['header_text'] if section_row and section_row['header_text'] else "(None)"
+        footer_text = section_row['footer_text'] if section_row and section_row['footer_text'] else "(None)"
+        hyperlink_text = section_row['hyperlink_text'] if section_row and section_row['hyperlink_text'] else "(None)"
+        table_text = section_row['table_text'] if section_row and section_row['table_text'] else "(None)"
+        breadcrumb_path = section_row['breadcrumb_path'] if section_row and section_row['breadcrumb_path'] else "(None)"
+        procedure_title = section_row['procedure_title'] if section_row and section_row['procedure_title'] else "(None)"
+
+        context_parts.append(
+            f"---\n"
+            f"Source Document: {row['doc_name']}\n"
+            f"Page: {row['page_num']}\n"
+            f"Section: {row['section_header']} (Section ID: {section_id})\n"
+            f"Breadcrumb: {breadcrumb_path}\n"
+            f"Procedure: {procedure_title}\n"
+            f"Header: {header_text}\n"
+            f"Footer: {footer_text}\n"
+            f"Hyperlinks: {hyperlink_text}\n"
+            f"Table(s): {table_text}\n"
+            f"Content: {row['raw_text']}\n"
+            f"---"
+        )
+        citations.append(f"Source: {row['doc_name']}, Page: {row['page_num']}, Section ID: {section_id}")
+
+    main_db_conn.close()
+    # 🟢 Print all retrieved context blocks for validation
+    print("\n" + "="*40)
+    print("Packed Context Chunks Sent to LLM:\n")
+    for chunk_text in context_parts:
+        print(chunk_text)
+        print("-"*40)
+    print("="*40 + "\n")
+    # 🟢 End debug print
     return "\n\n".join(context_parts), list(dict.fromkeys(citations))
+
 
 def _condense_question_with_history(query: str, chat_history: List[dict]) -> str:
     """
@@ -553,6 +629,7 @@ if __name__ == "__main__":
     parser.add_argument("--top_k", type=int, default=3, help="Number of chunks for final context.")
     parser.add_argument("--no_ensemble", action="store_true", help="Use only the primary embedding model.")
     parser.add_argument("--persona", choices=["consultant_answer", "developer_answer", "user_answer"], default="user_answer")
+    parser.add_argument("--show_chunks", action="store_true", help="Print retrieved chunks/context before LLM answer")
     args = parser.parse_args()
 
     load_resources()

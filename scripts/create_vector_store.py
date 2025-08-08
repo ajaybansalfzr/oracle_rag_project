@@ -7,6 +7,7 @@ from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
 from rank_bm25 import BM25Okapi
 import nltk
+import sys
 
 # Refactored imports to use centralized config and utils
 from scripts import config
@@ -37,11 +38,20 @@ def create_indexes_for_tier(data: list, model, model_name: str, tier: str):
         return
 
     id_col = f"{tier}_id"
-    summary_col = "summary" if tier == "chunk" else "section_summary"
+    # summary_col = "summary" if tier == "chunk" else "section_summary"
     
-    ids = [row[id_col] for row in data]
-    summaries = [row[summary_col] for row in data]
-    
+    # ids = [row[id_col] for row in data]
+    # summaries = [row[summary_col] for row in data]
+    # Always embed the actual text, never the summary:
+    embed_col = "chunk_text" if tier == "chunk" else "raw_text"
+    embeddings_input = [row[embed_col] for row in data if row[embed_col] and isinstance(row[embed_col], str) and row[embed_col].strip()]
+    ids = [row[f"{tier}_id"] for row in data if row[embed_col] and isinstance(row[embed_col], str) and row[embed_col].strip()]
+
+    if not embeddings_input:
+        logger.warning(f"No valid {embed_col} entries to process for tier '{tier}'. Skipping.")
+        return
+
+
     # --- Artifact Path Generation (using safe names) ---
     safe_name = get_safe_model_name(model_name)
     faiss_path = config.EMBEDDINGS_DIR / f"{tier}_index_{safe_name}.faiss"
@@ -56,8 +66,11 @@ def create_indexes_for_tier(data: list, model, model_name: str, tier: str):
     #     # bm25_path.unlink(missing_ok=True)
 
     # --- 1. FAISS Index (Semantic) ---
-    logger.info(f"Generating {len(summaries)} embeddings for tier '{tier}'...")
-    embeddings = model.encode(summaries, show_progress_bar=True, batch_size=128)
+    # logger.info(f"Generating {len(summaries)} embeddings for tier '{tier}'...")
+    # embeddings = model.encode(summaries, show_progress_bar=True, batch_size=128)
+    # dimension = embeddings.shape[1]
+    logger.info(f"Generating {len(embeddings_input)} embeddings for tier '{tier}'...")
+    embeddings = model.encode(embeddings_input, show_progress_bar=True, batch_size=128)
     dimension = embeddings.shape[1]
     
     if faiss_path.exists():
@@ -85,7 +98,8 @@ def create_indexes_for_tier(data: list, model, model_name: str, tier: str):
             summary TEXT, 
             raw_text TEXT)""")
     meta_data_to_add = []
-    raw_text_col = "raw_text"
+    # raw_text_col = "raw_text"
+    raw_text_col = "chunk_text" if tier == "chunk" else "raw_text"
     
     # raw_text_col = "chunk_text" if tier == "chunk" else "raw_text"
     # Both chunk and section queries return a column named 'raw_text'.
@@ -112,7 +126,7 @@ def create_indexes_for_tier(data: list, model, model_name: str, tier: str):
             row['doc_name'],
             row['page_num'],
             row['section_header'],
-            row[summary_col],
+            "",# row[summary_col],
             row[raw_text_col]
         ))
 
@@ -147,6 +161,7 @@ def rebuild_bm25_for_tier(model_name: str, tier: str):
     meta_path = config.EMBEDDINGS_DIR / f"{tier}_metadata_{safe_name}.db"
     bm25_path = config.EMBEDDINGS_DIR / f"{tier}_bm25_{safe_name}.pkl"
 
+    
     if not meta_path.exists():
         logger.warning(f"No metadata found for model '{model_name}' tier '{tier}'. Skipping BM25.")
         return
@@ -155,14 +170,37 @@ def rebuild_bm25_for_tier(model_name: str, tier: str):
     conn = sqlite3.connect(meta_path)
     conn.row_factory = sqlite3.Row
     id_col = f"{tier}_id"
+    # text_col = "chunk_text" if tier == "chunk" else "raw_text"
+    text_col = "raw_text"
 
-    all_rows = conn.execute(f"SELECT summary, {id_col}, doc_id FROM metadata").fetchall()
-    conn.close()
+    all_rows = conn.execute(f"SELECT {text_col}, {id_col}, doc_id FROM metadata").fetchall()
+    tokenized_corpus = [nltk.word_tokenize((doc[text_col] or '').lower()) for doc in all_rows if doc[text_col]]
 
-    tokenized_corpus = [nltk.word_tokenize(doc['summary'].lower()) for doc in all_rows]
+
+    # all_rows = conn.execute(f"SELECT summary, {id_col}, doc_id FROM metadata").fetchall()
+    # conn.close()
+
+    # # tokenized_corpus = [nltk.word_tokenize(doc['summary'].lower()) for doc in all_rows]
+    # # bm25_index = BM25Okapi(tokenized_corpus)
+    # # bm25_doc_map = {i: {"id": row[id_col], "doc_id": row["doc_id"]} for i, row in enumerate(all_rows)}
+
+    # # logger.info(f"Saving BM25 index to {bm25_path} ...")
+    # # with open(bm25_path, 'wb') as f:
+    # #     pickle.dump({
+    # #         'index': bm25_index,
+    # #         'doc_map': bm25_doc_map,
+    # #         'corpus': tokenized_corpus
+    # #     }, f)
+    # # logger.info(f"BM25 index for {tier} rebuilt. Entries: {len(all_rows)}")
+    # tokenized_corpus = [nltk.word_tokenize((doc['summary'] or '').lower()) for doc in all_rows if doc['summary']]
+    if not tokenized_corpus:
+        logger.warning(f"BM25 index for {tier} not created for model '{model_name}' — no data found.")
+        return
+
     bm25_index = BM25Okapi(tokenized_corpus)
     bm25_doc_map = {i: {"id": row[id_col], "doc_id": row["doc_id"]} for i, row in enumerate(all_rows)}
 
+    logger.info(f"Saving BM25 index to {bm25_path} ...")
     with open(bm25_path, 'wb') as f:
         pickle.dump({
             'index': bm25_index,
@@ -170,6 +208,7 @@ def rebuild_bm25_for_tier(model_name: str, tier: str):
             'corpus': tokenized_corpus
         }, f)
     logger.info(f"BM25 index for {tier} rebuilt. Entries: {len(all_rows)}")
+
 
 
 # def process_embeddings_for_model(model_name: str):
@@ -322,7 +361,7 @@ def process_embeddings_for_model(model_name: str):
 
     # Step 2: Add new CHUNK vectors for the CURRENT, ACTIVE documents.
     chunk_query = f"""
-        SELECT c.chunk_id, c.summary, d.doc_id, d.doc_name, s.page_num, s.section_header, c.chunk_text as raw_text
+        SELECT c.chunk_id, c.summary, d.doc_id, d.doc_name, s.page_num, s.section_header, c.chunk_text
         FROM chunks c JOIN sections s ON c.section_id = s.section_id JOIN documents d ON s.doc_id = d.doc_id
         WHERE d.doc_id IN ({','.join(['?'] * len(doc_ids_to_process))}) AND c.{vector_id_col} IS NULL
     """
@@ -341,7 +380,6 @@ def process_embeddings_for_model(model_name: str):
         SELECT s.section_id, s.section_summary, d.doc_id, d.doc_name, s.page_num, s.section_header, s.raw_text
         FROM sections s JOIN documents d ON s.doc_id = d.doc_id
         WHERE d.doc_id IN ({','.join(['?'] * len(doc_ids_to_process))})
-        AND s.section_summary IS NOT NULL
     """
     sections_to_process = conn.execute(section_query, doc_ids_to_process).fetchall()
     create_indexes_for_tier(sections_to_process, model, model_name, 'section')
@@ -391,6 +429,12 @@ def main():
 
     logger.info("--- All embedding and indexing processes are complete. ---")
 
+if len(sys.argv) > 1 and sys.argv[1].endswith(".csv"):
+    from scripts.extractor_for_pdf import evaluate_against_golden
+    evaluate_against_golden(sys.argv[1], get_db_connection())
+
+
 if __name__ == "__main__":
     main()
+
 

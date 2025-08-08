@@ -183,3 +183,24 @@ def extract_page_enrichments(page: fitz.Page, body_y_bounds: tuple) -> dict:
         "hyperlink_text": hyperlink_text,
         "table_text": "\n---\n".join(table_texts)
     }
+
+def split_text_into_token_chunks(text, tokenizer, max_tokens=256, overlap=0):
+    sentences = [s for s in text.split('\n') if s.strip()]
+    chunks = []
+    chunk = []
+    chunk_tokens = 0
+
+    for sentence in sentences:
+        tokens = tokenizer.encode(sentence, add_special_tokens=False)
+        if chunk_tokens + len(tokens) > max_tokens:
+            if chunk:
+                chunks.append('\n'.join(chunk))
+            # Handle overlap if needed (optional, here is no overlap)
+            chunk = [sentence]
+            chunk_tokens = len(tokens)
+        else:
+            chunk.append(sentence)
+            chunk_tokens += len(tokens)
+    if chunk:
+        chunks.append('\n'.join(chunk))
+    return chunks

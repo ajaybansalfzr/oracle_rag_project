@@ -54,8 +54,8 @@ MODEL_PATHS = {
 # MODEL_NAME_RERANKER = 'cross-encoder/ms-marco-MiniLM-L-6-v2'
 
 # --- Chunking Parameters (Ref: FSD Hardcoded Parameters Table) ---
-CHUNK_SIZE_TOKENS = 1024
-CHUNK_MIN_TOKENS = 10
+CHUNK_SIZE_TOKENS = 256
+CHUNK_MIN_TOKENS = 32
 CHUNK_OVERLAP_SENTENCES = 1
 
 # --- Search & Ranking Parameters ---

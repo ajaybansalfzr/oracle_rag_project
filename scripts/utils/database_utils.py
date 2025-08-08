@@ -123,7 +123,7 @@ def initialize_database():
         # Table 3: Stores the smaller, token-aware chunks derived from sections.
         # THIS IS THE CORRECTED SCHEMA. This table will hold the summaries and the vector IDs,
         # as each chunk will get its own embedding.
-        # cursor.execute("""
+        # cursor.execute("""    
         # CREATE TABLE IF NOT EXISTS chunks (
         #     chunk_id INTEGER PRIMARY KEY AUTOINCREMENT,
         #     section_id INTEGER NOT NULL,

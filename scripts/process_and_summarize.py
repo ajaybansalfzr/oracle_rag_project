@@ -33,6 +33,10 @@ logger = get_logger(__name__)
 MAX_CONCURRENT_LLM_CALLS = 4
 tokenizer_path = config.MODEL_PATHS[config.PRIMARY_RETRIEVER_MODEL]
 
+# Use a local path if you have downloaded the model
+TOKENIZER_MODEL_PATH = str(config.MODEL_PATHS[config.PRIMARY_RETRIEVER_MODEL])
+tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_MODEL_PATH)
+
 # Initialize tokenizer once and reuse
 try:
     TOKENIZER = AutoTokenizer.from_pretrained(
@@ -124,6 +128,87 @@ def chunk_text(text: str) -> list[str]:
     logger.debug(f"Chunked text into {len(chunks)} chunks.")
     return chunks
 
+# def main():
+#     """
+#     Main pipeline that processes documents one-by-one, performs only token-aware chunking,
+#     and saves these chunks directly (NO LLM SUMMARIZATION!).
+#     """
+#     logger.info("--- Starting content processing (Chunking-Only Strategy, No Summarization) ---")
+    
+#     conn_outer = get_db_connection()
+#     docs_to_process = conn_outer.execute("""
+#         SELECT doc_id, doc_name FROM documents 
+#         WHERE processing_status = 'extracted' AND lifecycle_status = 'active'
+#     """).fetchall()
+#     conn_outer.close()
+
+#     if not docs_to_process:
+#         logger.info("No new documents with status 'extracted' to process.")
+#         return
+
+#     logger.info(f"Found {len(docs_to_process)} document(s) to process individually.")
+
+#     for doc in docs_to_process:
+#         doc_id, doc_name = doc['doc_id'], doc['doc_name']
+#         logger.info(f"--- Processing Document: '{doc_name}' (ID: {doc_id}) ---")
+        
+#         try:
+#             with get_db_connection() as conn:
+#                 cursor = conn.cursor()
+
+#                 cursor.execute("""
+#                     SELECT section_id, raw_text, section_header
+#                     FROM sections
+#                     WHERE doc_id = ? AND section_summary IS NULL
+#                     ORDER BY section_header, page_num;
+#                 """, (doc_id,))
+#                 sections_to_process = cursor.fetchall()
+
+#                 if not sections_to_process:
+#                     logger.warning(f"Document '{doc_name}' has no unprocessed sections. Skipping to next.")
+#                     continue
+
+#                 key_func = itemgetter('section_header')
+#                 grouped_logical_sections = groupby(sections_to_process, key=key_func)
+#                 all_chunks_for_doc = []
+
+#                 for section_header, group in grouped_logical_sections:
+#                     section_parts = list(group)
+#                     full_section_text = "\n".join(part['raw_text'] for part in section_parts)
+#                     primary_section_id = section_parts[0]['section_id']
+
+#                     # --- CHUNKING ONLY ---
+#                     chunks = chunk_text(full_section_text)
+#                     if not chunks:
+#                         chunks = [full_section_text]
+
+#                     # Set summary as NULL/empty (since we are not summarizing)
+#                     for chunk_text_content in chunks:
+#                         all_chunks_for_doc.append((
+#                             primary_section_id, doc_id, chunk_text_content, None  # No summary!
+#                         ))
+
+#                 # --- DB Writes ---
+#                 if all_chunks_for_doc:
+#                     cursor.executemany(
+#                         "INSERT INTO chunks (section_id, doc_id, chunk_text, summary) VALUES (?, ?, ?, ?)",
+#                         all_chunks_for_doc
+#                     )
+#                     logger.info(f"Inserted {len(all_chunks_for_doc)} chunks for doc '{doc_name}'.")
+
+#                 cursor.execute(
+#                     "UPDATE documents SET processing_status = 'chunked_and_summarized' WHERE doc_id = ?", (doc_id,)
+#                 )
+#                 logger.info(f"Status updated for '{doc_name}'.")
+
+#         except Exception as e:
+#             logger.error(
+#                 f"Failed to process document '{doc_name}' (ID: {doc_id}). Transaction rolled back. Error: {e}", exc_info=True
+#             )
+#             continue
+#     logger.info("--- All documents have been attempted. Pipeline finished. ---")
+
+
 def main():
     """
     Main pipeline that processes documents one-by-one, performs only token-aware chunking,
@@ -207,6 +292,10 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# if __name__ == "__main__":
+#     main()
 
 # # Initialize tokenizer for accurately counting tokens
 # TOKENIZER = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
