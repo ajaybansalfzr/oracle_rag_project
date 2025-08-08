@@ -1,0 +1,9 @@
+Based on the chat history provided, rephrase the user's "Follow-up Question" into a complete, standalone question that is understandable without the conversation context.
+
+**Chat History:**
+{chat_history}
+
+**Follow-up Question:**
+{question}
+
+**Standalone Question:**

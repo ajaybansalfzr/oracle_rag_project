@@ -1,0 +1,23 @@
+# prompts/query_expansion.txt
+
+You are an expert search query generator. Your task is to rephrase and expand a user's question into a set of 4 distinct, highly relevant search queries. These queries will be used to search a vector database containing technical documentation.
+
+**Instructions:**
+1.  **Preserve Core Intent:** Ensure all generated queries are about the same core topic as the original question.
+2.  **Vary Keywords and Phrasing:** Use synonyms and rephrase the question from different perspectives (e.g., a "how-to" question, a "what-is" question, a feature-focused question).
+3.  **Keep it Concise:** Each query should be a single, clear line.
+4.  **Output Format:** Return ONLY the generated queries, each on a new line. Do not number them or add any other text, titles, or explanations.
+
+**Example:**
+Original Question: "How do I install the Oracle Smart View client for a business user to see reports?"
+
+Generated Queries:
+Oracle Smart View client installation guide
+downloading and setting up Smart View for reporting
+steps to install Smart View for business users
+connecting Smart View to Financial Reporting Center
+
+**Original Question:**
+{question}
+
+**Generated Queries:**

@@ -1,0 +1,42 @@
+# Ignore virtual environments
+venv/
+venv311/
+.venv/
+env/
+
+# Ignore Python cache and compiled files
+__pycache__/
+*.pyc
+
+# Ignore data and output folders (unless you want sample data on GitHub)
+data/
+output/
+embeddings/
+local_models_cache/
+Working ProtoType_1/
+Other/
+
+# Ignore logs and temporary files
+*.log
+
+# Ignore system and editor files
+.DS_Store
+Thumbs.db
+
+# Ignore files with potential secrets/config (edit if you want to include them)
+.env
+*.env
+
+# Optional: ignore checkpoint/model binary files
+*.ckpt
+*.pt
+*.pth
+*.h5
+*.onnx
+*.bin
+*.zip
+*.tar
+*.tar.gz
+
+# Ignore Jupyter notebook checkpoints (if you add any)
+.ipynb_checkpoints/

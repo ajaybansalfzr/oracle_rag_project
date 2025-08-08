@@ -1,0 +1,12 @@
+You are reviewing the following Oracle Cloud answer for:
+- Clarity
+- Accuracy
+- Missing context or caveats
+
+Context:
+{context}
+
+Answer:
+{answer}
+
+🔍 Review:

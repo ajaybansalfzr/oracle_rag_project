@@ -1,0 +1,11 @@
+pymupdf
+pdfplumber
+pytesseract
+pandas
+numpy
+nltk
+tiktoken
+langdetect
+pillow
+sqlite-utils
+tqdm
